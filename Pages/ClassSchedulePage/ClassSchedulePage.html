@@ -37,6 +37,11 @@
                         <span class="summary-label"><i class="fas fa-chalkboard-teacher"></i> Coach</span>
                         <span id="summaryCoach" class="summary-val">All Coaches</span>
                     </div>
+                    <!-- Venue Filter Summary -->
+                    <div class="summary-item">
+                        <span class="summary-label"><i class="fas fa-map-marker-alt"></i> Venue</span>
+                        <span id="summaryVenue" class="summary-val">All Venues</span>
+                    </div>
                 </div>
 
                 <button id="openFilterModal" class="filter-trigger-btn-green">
@@ -106,6 +111,13 @@
                     <label><i class="fas fa-chalkboard-teacher"></i> Coach</label>
                     <select id="filterCoach" class="filter-input">
                         <option value="">All Coaches</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label><i class="fas fa-map-marker-alt"></i> Venue</label>
+                    <select id="filterVenue" class="filter-input">
+                        <option value="">All Venues</option>
                     </select>
                 </div>
             </div>

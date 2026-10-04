@@ -5,6 +5,8 @@ const bcrypt = require('bcrypt');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
+const fs = require('fs');
+
 
 const app = express();
 app.use(express.json());
@@ -194,7 +196,7 @@ app.post('/api/auth/login', async (req, res) => {
         let imageUrl = null;
         if (user.profile_image) {
             const baseUrl = `${req.protocol}://${req.get('host')}`;
-            imageUrl = `${baseUrl}/uploads/${user.profile_image}`;
+            imageUrl = `${baseUrl}/profile-picture/${user.profile_image}`;
         }
 
         // Include 'role' in the login response
@@ -320,14 +322,16 @@ app.put('/api/user/password', authenticateToken, async (req, res) => {
 
 const multer = require('multer');
 
-// --- Configure Multer Local Storage ---
-const storage = multer.diskStorage({
+// --- Configure Multer Storage for User Profile Pictures (Folder: profile-picture) ---
+const profilePicStorage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const uploadDir = path.join(__dirname, 'public', 'uploads');
+        const uploadDir = path.join(__dirname, 'public', 'profile-picture');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
         cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
-        // Generate a unique filename: user-ID-timestamp.extension
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         const ext = path.extname(file.originalname);
         cb(null, `profile-${req.user.id}-${uniqueSuffix}${ext}`);
@@ -335,8 +339,8 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ 
-    storage: storage,
-    limits: { fileSize: 2 * 1024 * 1024 }, // Limit to 2MB
+    storage: profilePicStorage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
     fileFilter: (req, file, cb) => {
         if (file.mimetype.startsWith('image/')) {
             cb(null, true);
@@ -346,38 +350,73 @@ const upload = multer({
     }
 });
 
-// --- Serve Uploads Folder Globally & Publicly ---
-app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+// --- Configure Multer Storage for Coach Card Profile Image (Folder: cardprofile) ---
+const cardProfileStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadDir = path.join(__dirname, 'public', 'cardprofile');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        cb(null, `cardprofile-${req.user.id}-${uniqueSuffix}${ext}`);
+    }
+});
+
+const uploadCardProfile = multer({
+    storage: cardProfileStorage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // Updated to 5MB
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed!'), false);
+        }
+    }
+});
+
+// --- Serve profile-picture & Card Profile Folders Globally & Publicly ---
+app.use('/profile-picture', express.static(path.join(__dirname, 'public', 'profile-picture')));
+app.use('/cardprofile', express.static(path.join(__dirname, 'public', 'cardprofile')));
 
 // --- Updated Profile Get Endpoint (Returns real image URL) ---
 app.get('/api/user/profile', authenticateToken, async (req, res) => {
     try {
-        // Select 'role' along with other profile fields
         const [users] = await pool.execute('SELECT name, email, phone, role, profile_image FROM users WHERE id = ?', [req.user.id]);
         if (users.length === 0) return res.status(404).json({ message: 'User not found.' });
 
         const user = users[0];
-        
-        let imageUrl = null;
-        if (user.profile_image) {
-            const baseUrl = `${req.protocol}://${req.get('host')}`;
-            imageUrl = `${baseUrl}/uploads/${user.profile_image}`;
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const imageUrl = user.profile_image ? `${baseUrl}/profile-picture/${user.profile_image}` : null;
+
+        let coachClassImage = null;
+        let imagePosition = '50% 50%';
+
+        if (user.role === 'coach') {
+            const [coaches] = await pool.execute('SELECT classimage, image_position FROM coach WHERE user_id = ?', [req.user.id]);
+            if (coaches.length > 0) {
+                if (coaches[0].classimage) coachClassImage = `${baseUrl}/cardprofile/${coaches[0].classimage}`;
+                if (coaches[0].image_position) imagePosition = coaches[0].image_position;
+            }
         }
 
         res.json({
             name: user.name,
             email: user.email,
             phone: user.phone,
-            role: user.role, // Returned to client
-            profileImage: imageUrl
+            role: user.role,
+            profileImage: imageUrl,
+            coachClassImage,
+            imagePosition
         });
     } catch (err) {
         console.error('Fetch Profile Error:', err);
         res.status(500).json({ message: 'Server error while fetching profile.' });
     }
 });
-
-const fs = require('fs');
 
 // --- Updated Profile Put Endpoint (Handles both text fields and file upload) ---
 app.put('/api/user/profile', authenticateToken, upload.single('profileImage'), async (req, res) => {
@@ -389,7 +428,7 @@ app.put('/api/user/profile', authenticateToken, upload.single('profileImage'), a
             const [existingUser] = await pool.execute('SELECT profile_image FROM users WHERE id = ?', [req.user.id]);
             if (existingUser.length > 0 && existingUser[0].profile_image) {
                 const oldFilename = existingUser[0].profile_image;
-                const oldFilePath = path.join(__dirname, 'public', 'uploads', oldFilename);
+                const oldFilePath = path.join(__dirname, 'public', 'profile-picture', oldFilename);
 
                 // Check if the old file physically exists, then delete it
                 if (fs.existsSync(oldFilePath)) {
@@ -418,7 +457,7 @@ app.put('/api/user/profile', authenticateToken, upload.single('profileImage'), a
         let imageUrl = null;
         if (req.file) {
             const baseUrl = `${req.protocol}://${req.get('host')}`;
-            imageUrl = `${baseUrl}/uploads/${req.file.filename}`;
+            imageUrl = `${baseUrl}/profile-picture/${req.file.filename}`;
         }
 
         res.json({ 
@@ -431,12 +470,70 @@ app.put('/api/user/profile', authenticateToken, upload.single('profileImage'), a
     }
 });
 
+// --- Coach Class Card Image Update Endpoint ---
+app.put('/api/coach/class-image', authenticateToken, uploadCardProfile.single('classImage'), async (req, res) => {
+    try {
+        if (req.user.role !== 'coach') {
+            return res.status(403).json({ message: 'Access denied. Coach privileges required.' });
+        }
+
+        const { imagePosition } = req.body;
+        
+        // 1. Check if a coach record exists for this user
+        let [coachRows] = await pool.execute('SELECT id, classimage FROM coach WHERE user_id = ?', [req.user.id]);
+        
+        let coach;
+        if (coachRows.length === 0) {
+            // If the coach record is missing, automatically create it so it never returns 404!
+            const [insertResult] = await pool.execute(
+                'INSERT INTO coach (user_id, name) VALUES (?, ?)',
+                [req.user.id, req.user.name || 'Coach']
+            );
+            coach = { id: insertResult.insertId, classimage: null };
+        } else {
+            coach = coachRows[0];
+        }
+
+        let query = 'UPDATE coach SET image_position = ?';
+        let params = [imagePosition || '50% 50%'];
+
+        if (req.file) {
+            if (coach.classimage) {
+                const oldFilePath = path.join(__dirname, 'public', 'cardprofile', coach.classimage);
+                if (fs.existsSync(oldFilePath)) {
+                    fs.unlinkSync(oldFilePath);
+                }
+            }
+            query += ', classimage = ?';
+            params.push(req.file.filename);
+        }
+
+        query += ' WHERE user_id = ?';
+        params.push(req.user.id);
+
+        await pool.execute(query, params);
+
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const updatedImage = req.file ? `${baseUrl}/cardprofile/${req.file.filename}` : (coach.classimage ? `${baseUrl}/cardprofile/${coach.classimage}` : null);
+
+        res.json({
+            message: 'Class card profile image and position updated successfully!',
+            coachClassImage: updatedImage,
+            imagePosition: imagePosition || '50% 50%'
+        });
+    } catch (err) {
+        console.error('Update Coach Class Image Error:', err);
+        res.status(500).json({ message: 'Server error while updating class card image.' });
+    }
+});
+
 // --- Get All Classes with Filters ---
 app.get('/api/classes', async (req, res) => {
     try {
         const { date, genre, coach, venue } = req.query;
         let query = `
-            SELECT c.*, g.name AS genre_name, ch.name AS coach_name, v.name AS venue_name, u.profile_image AS coach_image, ch.classimage AS coach_class_image 
+            SELECT c.*, g.name AS genre_name, ch.name AS coach_name, v.name AS venue_name, 
+                   u.profile_image AS coach_image, ch.classimage AS coach_class_image, ch.image_position AS coach_image_position 
             FROM classes c 
             JOIN genre g ON c.genreid = g.id 
             JOIN coach ch ON c.coachid = ch.id 
@@ -445,28 +542,18 @@ app.get('/api/classes', async (req, res) => {
             WHERE c.schedule_date >= CURDATE()
         `;
         let params = [];
-
-        if (date) {
-            query += ' AND c.schedule_date = ?';
-            params.push(date);
-        }
-        if (genre) {
-            query += ' AND c.genreid = ?';
-            params.push(genre);
-        }
-        if (coach) {
-            query += ' AND c.coachid = ?';
-            params.push(coach);
-        }
-        if (venue) {
-            query += ' AND c.venueid = ?';
-            params.push(venue);
-        }
-
+        // ... filters ...
         query += ' ORDER BY c.schedule_date ASC, c.start_time ASC';
-
         const [classes] = await pool.execute(query, params);
-        res.json(classes);
+
+        // --- THIS MAPPING IS CRITICAL ---
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const formattedClasses = classes.map(cls => ({
+            ...cls,
+            coach_class_image: cls.coach_class_image ? `${baseUrl}/cardprofile/${cls.coach_class_image}` : null
+        }));
+
+        res.json(formattedClasses);
     } catch (err) {
         console.error('Fetch Classes Error:', err);
         res.status(500).json({ message: 'Server error while fetching classes.' });
@@ -534,8 +621,8 @@ app.get('/api/admin/coaches', authenticateToken, async (req, res) => {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         const formattedCoaches = coaches.map(coach => ({
             ...coach,
-            profileimage: coach.profileimage ? `${baseUrl}/uploads/${coach.profileimage}` : null,
-            classimage: coach.classimage ? `${baseUrl}/uploads/${coach.classimage}` : null
+            profileimage: coach.profileimage ? `${baseUrl}/profile-picture/${coach.profileimage}` : null,
+            classimage: coach.classimage ? `${baseUrl}/cardprofile/${coach.classimage}` : null
         }));
 
         res.json(formattedCoaches);

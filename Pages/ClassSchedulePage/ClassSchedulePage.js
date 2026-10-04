@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let allClasses = [];
     let currentFilteredClasses = [];
     let currentIndex = 0;
+    let cardElements = []; 
 
     const openFilterModal = document.getElementById('openFilterModal');
     const closeFilterModal = document.getElementById('closeFilterModal');
@@ -13,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const summaryDate = document.getElementById('summaryDate');
     const summaryGenre = document.getElementById('summaryGenre');
     const summaryCoach = document.getElementById('summaryCoach');
+    const summaryVenue = document.getElementById('summaryVenue');
 
     const filterDateRangeMode = document.getElementById('filterDateRangeMode');
     const customDateContainer = document.getElementById('customDateContainer');
@@ -20,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const filterEndDate = document.getElementById('filterEndDate');
     const filterGenre = document.getElementById('filterGenre');
     const filterCoach = document.getElementById('filterCoach');
+    const filterVenue = document.getElementById('filterVenue');
     
     const scheduleTrack = document.getElementById('scheduleTrack');
     const noClassesMessage = document.getElementById('noClassesMessage');
@@ -28,31 +31,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalClassesDisplay = document.getElementById('totalClassesDisplay');
 
     // --- Modal Open/Close Event Listeners ---
-    if (openFilterModal) {
-        openFilterModal.addEventListener('click', () => {
-            filterModal.style.display = 'flex';
-        });
-    }
-
-    if (closeFilterModal) {
-        closeFilterModal.addEventListener('click', () => {
-            filterModal.style.display = 'none';
-        });
-    }
-
-    window.addEventListener('click', (e) => {
-        if (e.target === filterModal) {
-            filterModal.style.display = 'none';
-        }
-    });
+    if (openFilterModal) openFilterModal.addEventListener('click', () => filterModal.style.display = 'flex');
+    if (closeFilterModal) closeFilterModal.addEventListener('click', () => filterModal.style.display = 'none');
+    window.addEventListener('click', (e) => { if (e.target === filterModal) filterModal.style.display = 'none'; });
 
     if (filterDateRangeMode) {
         filterDateRangeMode.addEventListener('change', () => {
             if (filterDateRangeMode.value === 'custom') {
                 customDateContainer.style.display = 'flex';
-                if (!filterStartDate.value) {
-                    filterStartDate.value = new Date().toISOString().split('T')[0];
-                }
+                if (!filterStartDate.value) filterStartDate.value = new Date().toISOString().split('T')[0];
                 if (!filterEndDate.value) {
                     const nextWeek = new Date();
                     nextWeek.setDate(nextWeek.getDate() + 7);
@@ -67,18 +54,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Data Fetching ---
     async function loadFilterOptions() {
         try {
-            const [genreRes, coachRes] = await Promise.all([
-                fetch('/api/genres'),
-                fetch('/api/coaches')
+            const [genreRes, coachRes, venueRes] = await Promise.all([
+                fetch('/api/genres'), fetch('/api/coaches'), fetch('/api/venues')
             ]);
 
             if (genreRes.ok && filterGenre) {
                 const genres = await genreRes.json();
                 genres.forEach(g => {
                     const opt = document.createElement('option');
-                    opt.value = g.id;
-                    opt.textContent = g.name;
-                    filterGenre.appendChild(opt);
+                    opt.value = g.id; opt.textContent = g.name; filterGenre.appendChild(opt);
                 });
             }
 
@@ -86,9 +70,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const coaches = await coachRes.json();
                 coaches.forEach(c => {
                     const opt = document.createElement('option');
-                    opt.value = c.id;
-                    opt.textContent = c.name;
-                    filterCoach.appendChild(opt);
+                    opt.value = c.id; opt.textContent = c.name; filterCoach.appendChild(opt);
+                });
+            }
+
+            if (venueRes.ok && filterVenue) {
+                const venues = await venueRes.json();
+                venues.forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v.id; opt.textContent = v.name; filterVenue.appendChild(opt);
                 });
             }
         } catch (err) {
@@ -113,45 +103,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getSampleClasses() {
-        return [
-            {
-                id: 1,
-                title: 'RALPH: ALON SESSIONS',
-                genreid: 1,
-                genre_name: 'OPEN CHOREOGRAPHY',
-                coachid: 1,
-                coach_name: 'Ralph',
-                coach_class_image: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600',
-                schedule_date: '2026-10-03',
-                start_time: '15:15:00',
-                end_time: '17:00:00',
-                slots_remaining: 3,
-                capacity: 20,
-                price: 500.00
-            }
-        ];
+        return [{
+            id: 1, title: 'RALPH: ALON SESSIONS', genreid: 1, genre_name: 'OPEN CHOREOGRAPHY',
+            coachid: 1, coach_name: 'Ralph', venueid: 1, venue_name: 'Studio A',
+            coach_class_image: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600',
+            schedule_date: '2026-10-03', start_time: '15:15:00', end_time: '17:00:00',
+            slots_remaining: 3, capacity: 20, price: 500.00
+        }];
     }
 
     function formatTime(timeStr) {
         const [hour, minute] = timeStr.split(':');
         const h = parseInt(hour, 10);
         const ampm = h >= 12 ? 'PM' : 'AM';
-        const formattedHour = h % 12 || 12;
-        return `${formattedHour}:${minute} ${ampm}`;
+        return `${h % 12 || 12}:${minute} ${ampm}`;
     }
 
     function getCardDateParts(dateStr) {
         const d = new Date(dateStr);
-        const month = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
-        const day = d.getDate();
-        return { month, day };
+        return { month: d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(), day: d.getDate() };
     }
 
-    // --- Carousel Rendering & Empty View Handling ---
+    // --- Pre-load All Filtered Cards into DOM ---
     function renderCarousel(classesToRender) {
         currentFilteredClasses = classesToRender;
         if (!scheduleTrack) return;
         scheduleTrack.innerHTML = '';
+        cardElements = [];
 
         if (classesToRender.length === 0) {
             if (noClassesMessage) noClassesMessage.style.display = 'block';
@@ -163,34 +141,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (carouselCounter) carouselCounter.style.display = 'block';
         if (totalClassesDisplay) totalClassesDisplay.textContent = classesToRender.length;
 
-        if (currentIndex >= classesToRender.length) {
-            currentIndex = 0;
-        }
-
-        if (currentIndexDisplay) currentIndexDisplay.textContent = currentIndex + 1;
+        if (currentIndex >= classesToRender.length) currentIndex = 0;
 
         classesToRender.forEach((cls, idx) => {
             const { month, day } = getCardDateParts(cls.schedule_date);
             const classImage = cls.coach_class_image || 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600';
+            const imagePosition = cls.coach_image_position || '50% 50%'; // <-- Added image position support
 
             const card = document.createElement('div');
             card.className = 'class-card-custom';
-            
-            if (idx === currentIndex) {
-                card.classList.add('card-active');
-            } else if (idx === currentIndex - 1) {
-                card.classList.add('card-prev');
-            } else if (idx === currentIndex + 1) {
-                card.classList.add('card-next');
-            } else if (idx < currentIndex) {
-                card.classList.add('card-far-left');
-            } else {
-                card.classList.add('card-far-right');
-            }
+            card.dataset.index = idx;
 
             card.innerHTML = `
                 <div class="card-image-container">
-                    <img src="${classImage}" alt="${cls.title}" class="card-bg-img" draggable="false">
+                    <img src="${classImage}" alt="${cls.title}" class="card-bg-img" style="object-position: ${imagePosition};" draggable="false">
                     <div class="card-gradient-overlay"></div>
                     <div class="card-genre-badge">
                         <span>${cls.genre_name || 'DANCE CLASS'}</span>
@@ -201,14 +165,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 <div class="card-content-area">
-                    <h3 class="card-title">${cls.title}</h3>
+                    <h3 class="card-title" title="${cls.title}">${cls.title}</h3>
                     
                     <div class="card-time-pill">
                         <i class="fas fa-clock"></i> ${formatTime(cls.start_time)} - ${formatTime(cls.end_time)}
                     </div>
 
                     <div class="card-footer-info">
-                        <span class="card-coach"><i class="fas fa-chalkboard-teacher"></i> Coach ${cls.coach_name || 'Instructor'}</span>
+                        <div class="card-instructor-venue">
+                            <span class="card-coach"><i class="fas fa-chalkboard-teacher"></i> Coach ${cls.coach_name || 'Instructor'}</span>
+                            <span class="card-venue"><i class="fas fa-map-marker-alt"></i> ${cls.venue_name || 'Main Studio'}</span>
+                        </div>
                         <span class="card-price">₱${parseFloat(cls.price).toLocaleString()}</span>
                     </div>
 
@@ -218,101 +185,132 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
 
-            // --- Click/Tap Handler for Sub-Cards ---
+            // Navigation via clicks
             card.addEventListener('click', (e) => {
-                // Ignore clicks originating from the register button directly
                 if (e.target.closest('.register-btn')) return;
-
-                if (card.classList.contains('card-prev')) {
-                    animateTransitionToCard('prev', classesToRender);
-                } else if (card.classList.contains('card-next')) {
-                    animateTransitionToCard('next', classesToRender);
+                const clickedIdx = parseInt(card.dataset.index, 10);
+                if (clickedIdx !== currentIndex) {
+                    currentIndex = clickedIdx;
                 }
             });
 
-            card.querySelector('.register-btn').addEventListener('click', (e) => {
-                e.stopPropagation();
-                window.location.href = `../ClassDetails/ClassDetails.html?id=${cls.id}`;
-            });
-
             scheduleTrack.appendChild(card);
+            cardElements.push(card);
         });
+
+        updateCardPositions(currentIndex, false);
     }
 
-    // --- Touch & Mouse Real-Time Dragging ---
+    // --- Dynamic Card Physics Math (Enables infinite pre-loaded stack depth) ---
+    function updateCardPositions(vIndex, animate = false) {
+        const isMobile = window.innerWidth <= 768;
+        const spacing = isMobile ? 75 : 88;          // Dynamic horizontal spacing %
+        const scaleDropoff = isMobile ? 0.1 : 0.14;  // Scale decrease per depth layer
+        const rotationBase = isMobile ? 5 : 10;      // Rotation strength
+
+        cardElements.forEach((card, idx) => {
+            const d = idx - vIndex;        // Distance relative to focus point
+            const absD = Math.abs(d);      // Absolute distance from focus point
+            
+            // Native transition handling
+            card.style.transition = animate 
+                ? 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s ease, filter 0.5s ease' 
+                : 'none';
+            
+            // Calculate spatial coordinates 
+            const scale = Math.max(0.4, 1 - (absD * scaleDropoff));
+            const rotateY = -d * rotationBase; 
+            const translateX = d * spacing;
+            
+            // Falloff logic
+            const opacity = absD === 0 ? 1 : Math.max(0.1, 1 - (absD * 0.3));
+            const blurAmount = Math.min(6, absD * 1.5);
+            const zIndex = 100 - Math.round(absD * 10);
+            
+            // Apply inline layout physics natively
+            card.style.transform = `translateX(${translateX}%) scale(${scale}) rotateY(${rotateY}deg)`;
+            card.style.opacity = opacity;
+            card.style.filter = blurAmount > 0 ? `blur(${blurAmount}px)` : 'none';
+            card.style.zIndex = zIndex;
+            
+            // Allow interactions only for nearby visible cards
+            card.style.pointerEvents = absD > 3.5 ? 'none' : 'auto';
+            card.style.cursor = absD > 0 && absD <= 3.5 ? 'pointer' : 'default';
+
+            if (Math.round(vIndex) === idx) {
+                card.classList.add('card-active');
+                card.style.cursor = 'default';
+            } else {
+                card.classList.remove('card-active');
+            }
+        });
+
+        if (currentIndexDisplay) currentIndexDisplay.textContent = Math.round(vIndex) + 1;
+    }
+
+    // --- Touch & Drag Navigation System (Continuous multi-card skip handling) ---
     let startX = 0;
     let currentX = 0;
     let isDragging = false;
-    const swipeThreshold = 40;
-
-    function updateCardDragProgress(trackElement, dragOffset, maxOffset = 300) {
-        if (!trackElement) return;
-        const cards = trackElement.querySelectorAll('.class-card-custom');
-        const progress = Math.max(-1, Math.min(1, dragOffset / maxOffset));
-        
-        // Match mobile vs desktop peeking percentage
-        const isMobile = window.innerWidth <= 768;
-        const peekPercent = isMobile ? 76 : 88;
-        
-        cards.forEach((card) => {
-            card.style.transition = 'none';
-
-            if (card.classList.contains('card-active')) {
-                const currentScale = 1 - (Math.abs(progress) * 0.15);
-                const currentOpacity = 1 - (Math.abs(progress) * 0.2);
-                card.style.transform = `translateX(${dragOffset}px) scale(${currentScale})`;
-                card.style.opacity = currentOpacity;
-            } 
-            else if (card.classList.contains('card-prev')) {
-                const currentScale = 0.85 + (Math.max(0, progress) * 0.15);
-                const currentOpacity = 0.45 + (Math.max(0, progress) * 0.55);
-                card.style.transform = `translateX(calc(-${peekPercent}% + ${dragOffset}px)) scale(${currentScale}) rotateY(${5 - (Math.max(0, progress) * 5)}deg)`;
-                card.style.opacity = currentOpacity;
-            } 
-            else if (card.classList.contains('card-next')) {
-                const currentScale = 0.85 + (Math.max(0, -progress) * 0.15);
-                const currentOpacity = 0.45 + (Math.max(0, -progress) * 0.55);
-                card.style.transform = `translateX(calc(${peekPercent}% + ${dragOffset}px)) scale(${currentScale}) rotateY(${-5 + (Math.max(0, -progress) * 5)}deg)`;
-                card.style.opacity = currentOpacity;
-            }
-        });
-    }
-
-    function resetCardStyles(trackElement) {
-        if (!trackElement) return;
-        const cards = trackElement.querySelectorAll('.class-card-custom');
-        cards.forEach((card) => {
-            card.style.transition = '';
-            card.style.transform = '';
-            card.style.opacity = '';
-        });
-    }
+    let dragStartIndex = 0;
 
     if (scheduleTrack) {
         scheduleTrack.addEventListener('touchstart', (e) => {
             startX = e.touches[0].clientX;
             currentX = startX;
             isDragging = true;
+            dragStartIndex = currentIndex; // Capture origin of drag
         }, { passive: true });
 
         scheduleTrack.addEventListener('touchmove', (e) => {
             if (!isDragging) return;
             currentX = e.touches[0].clientX;
             const dragOffset = currentX - startX;
-            updateCardDragProgress(scheduleTrack, dragOffset);
+            
+            // Map drag distance into 'virtual card index' progression
+            const maxOffset = window.innerWidth <= 768 ? 200 : 300; 
+            const indexShift = -dragOffset / maxOffset;
+            let vIndex = dragStartIndex + indexShift;
+            
+            // Dampen drag at boundaries instead of hard clipping
+            if (vIndex < 0) vIndex *= 0.3; 
+            if (vIndex > currentFilteredClasses.length - 1) {
+                const overflow = vIndex - (currentFilteredClasses.length - 1);
+                vIndex = (currentFilteredClasses.length - 1) + overflow * 0.3;
+            }
+
+            // Real-time track without smooth transition css interference
+            updateCardPositions(vIndex, false);
         }, { passive: true });
 
         scheduleTrack.addEventListener('touchend', () => {
             if (!isDragging) return;
-            resetCardStyles(scheduleTrack);
-            handleSwipeGesture();
             isDragging = false;
+            
+            const dragOffset = currentX - startX;
+            const maxOffset = window.innerWidth <= 768 ? 200 : 300;
+            const indexShift = -dragOffset / maxOffset;
+            
+            // Round drag completion to nearest whole card
+            let finalIndex = Math.round(dragStartIndex + indexShift);
+
+            // Give a quick flick detection boost for fast, short swipes
+            if (Math.abs(indexShift) < 0.5 && Math.abs(dragOffset) > 40) {
+               finalIndex = dragOffset < 0 ? dragStartIndex + 1 : dragStartIndex - 1;
+            }
+
+            // Secure boundaries
+            finalIndex = Math.max(0, Math.min(finalIndex, currentFilteredClasses.length - 1));
+            
+            currentIndex = finalIndex;
+            updateCardPositions(currentIndex, true); // Snap into final place
         });
 
         scheduleTrack.addEventListener('mousedown', (e) => {
             startX = e.clientX;
             currentX = startX;
             isDragging = true;
+            dragStartIndex = currentIndex;
             e.preventDefault();
         });
     }
@@ -321,33 +319,39 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isDragging) return;
         currentX = e.clientX;
         const dragOffset = currentX - startX;
-        updateCardDragProgress(scheduleTrack, dragOffset);
+        const maxOffset = window.innerWidth <= 768 ? 200 : 300;
+        const indexShift = -dragOffset / maxOffset;
+        let vIndex = dragStartIndex + indexShift;
+        
+        if (vIndex < 0) vIndex *= 0.3; 
+        if (vIndex > currentFilteredClasses.length - 1) {
+            const overflow = vIndex - (currentFilteredClasses.length - 1);
+            vIndex = (currentFilteredClasses.length - 1) + overflow * 0.3;
+        }
+
+        updateCardPositions(vIndex, false);
     });
 
     window.addEventListener('mouseup', () => {
         if (!isDragging) return;
-        resetCardStyles(scheduleTrack);
-        handleSwipeGesture();
         isDragging = false;
+        
+        const dragOffset = currentX - startX;
+        const maxOffset = window.innerWidth <= 768 ? 200 : 300;
+        const indexShift = -dragOffset / maxOffset;
+        let finalIndex = Math.round(dragStartIndex + indexShift);
+
+        if (Math.abs(indexShift) < 0.5 && Math.abs(dragOffset) > 40) {
+            finalIndex = dragOffset < 0 ? dragStartIndex + 1 : dragStartIndex - 1;
+        }
+        finalIndex = Math.max(0, Math.min(finalIndex, currentFilteredClasses.length - 1));
+        
+        currentIndex = finalIndex;
+        updateCardPositions(currentIndex, true);
     });
 
-    function handleSwipeGesture() {
-        if (!currentX) return;
-        const diff = startX - currentX;
-
-        if (Math.abs(diff) > swipeThreshold) {
-            if (diff > 0 && currentIndex < currentFilteredClasses.length - 1) {
-                currentIndex++;
-            } else if (diff < 0 && currentIndex > 0) {
-                currentIndex--;
-            }
-            renderCarousel(currentFilteredClasses);
-        }
-        currentX = 0;
-    }
-
-    // --- Filtering & Summary Logic ---
-    function updateSummaryCardDisplay(rangeMode, genreText, coachText) {
+    // --- Filtering Logic ---
+    function updateSummaryCardDisplay(rangeMode, genreText, coachText, venueText) {
         let rangeLabel = "All Upcoming";
         if (rangeMode === 'today') rangeLabel = "This Day";
         else if (rangeMode === 'week') rangeLabel = "This Week";
@@ -361,22 +365,28 @@ document.addEventListener('DOMContentLoaded', () => {
         if (summaryDate) summaryDate.textContent = rangeLabel;
         if (summaryGenre) summaryGenre.textContent = genreText;
         if (summaryCoach) summaryCoach.textContent = coachText;
+        if (summaryVenue) summaryVenue.textContent = venueText;
         
-        const isDefault = (rangeMode === 'all' && (!filterGenre || filterGenre.value === '') && (!filterCoach || filterCoach.value === ''));
-        if (activeFiltersBadge) {
-            activeFiltersBadge.style.display = isDefault ? 'none' : 'inline-block';
-        }
+        const isDefault = (
+            rangeMode === 'all' && 
+            (!filterGenre || filterGenre.value === '') && 
+            (!filterCoach || filterCoach.value === '') &&
+            (!filterVenue || filterVenue.value === '')
+        );
+        if (activeFiltersBadge) activeFiltersBadge.style.display = isDefault ? 'none' : 'inline-block';
     }
 
     function applyFilters() {
         const rangeMode = filterDateRangeMode ? filterDateRangeMode.value : 'all';
         const selectedGenre = filterGenre ? filterGenre.value : '';
         const selectedCoach = filterCoach ? filterCoach.value : '';
+        const selectedVenue = filterVenue ? filterVenue.value : '';
 
         const genreLabel = filterGenre && selectedGenre ? filterGenre.options[filterGenre.selectedIndex].text : "All Genres";
         const coachLabel = filterCoach && selectedCoach ? filterCoach.options[filterCoach.selectedIndex].text : "All Coaches";
+        const venueLabel = filterVenue && selectedVenue ? filterVenue.options[filterVenue.selectedIndex].text : "All Venues";
 
-        updateSummaryCardDisplay(rangeMode, genreLabel, coachLabel);
+        updateSummaryCardDisplay(rangeMode, genreLabel, coachLabel, venueLabel);
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -418,18 +428,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const matchGenre = !selectedGenre || String(cls.genreid) === String(selectedGenre);
             const matchCoach = !selectedCoach || String(cls.coachid) === String(selectedCoach);
+            const matchVenue = !selectedVenue || String(cls.venueid) === String(selectedVenue);
             
-            return matchDate && matchGenre && matchCoach;
+            return matchDate && matchGenre && matchCoach && matchVenue;
         });
 
-        currentIndex = 0;
         renderCarousel(filtered);
         if (filterModal) filterModal.style.display = 'none';
     }
 
-    if (applyModalFilters) {
-        applyModalFilters.addEventListener('click', applyFilters);
-    }
+    if (applyModalFilters) applyModalFilters.addEventListener('click', applyFilters);
 
     if (resetModalFilters) {
         resetModalFilters.addEventListener('click', () => {
@@ -439,51 +447,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (filterEndDate) filterEndDate.value = '';
             if (filterGenre) filterGenre.value = '';
             if (filterCoach) filterCoach.value = '';
+            if (filterVenue) filterVenue.value = '';
             applyFilters();
         });
     }
 
     loadFilterOptions();
     fetchClasses();
-
-    // --- Smooth Click-to-Glide Transition (Mirrors Dragging Physics) ---
-    function animateTransitionToCard(targetDirection, classesToRender) {
-        const isMobile = window.innerWidth <= 768;
-        
-        // Reduce travel distance on mobile so it doesn't feel like a huge jump
-        const targetOffset = targetDirection === 'prev' 
-            ? (isMobile ? 150 : 300) 
-            : (isMobile ? -150 : -300);
-            
-        let startTime = null;
-        const duration = isMobile ? 220 : 350; // Quicker, smoother mobile duration
-
-        function step(timestamp) {
-            if (!startTime) startTime = timestamp;
-            const elapsed = timestamp - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            
-            // Smooth cubic ease-out curve
-            const easeProgress = 1 - Math.pow(1 - progress, 3);
-            const currentOffset = targetOffset * easeProgress;
-
-            // Apply real-time card tracking with adjusted max offset reference
-            updateCardDragProgress(scheduleTrack, currentOffset, Math.abs(targetOffset));
-
-            if (progress < 1) {
-                requestAnimationFrame(step);
-            } else {
-                // Animation complete: update index and re-render fresh carousel state
-                if (targetDirection === 'prev') {
-                    currentIndex = (currentIndex - 1 + classesToRender.length) % classesToRender.length;
-                } else {
-                    currentIndex = (currentIndex + 1) % classesToRender.length;
-                }
-                resetCardStyles(scheduleTrack);
-                renderCarousel(classesToRender);
-            }
-        }
-
-        requestAnimationFrame(step);
-    }
 });

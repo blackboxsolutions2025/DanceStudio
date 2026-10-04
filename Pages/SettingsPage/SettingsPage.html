@@ -38,7 +38,7 @@
                             <i class="fa-solid fa-camera"></i> Change Picture
                         </label>
                         <input type="file" id="profilePicInput" accept="image/*" style="display: none;">
-                        <span class="file-hint">JPG, PNG or GIF (Max 2MB)</span>
+                        <span class="file-hint">JPG, PNG or GIF (Max 5MB). Click & drag image to reframe.</span>
                     </div>
                 </div>
 
@@ -94,9 +94,77 @@
                 </div>
             </form>
         </section>
+
+        <!-- 3. Coach Class Card Profile Image Section (Visible only for coaches) -->
+        <section class="settings-section" id="coachCardImageSection" style="display: none;">
+            <div class="section-title">
+                <i class="fa-solid fa-image"></i>
+                <h2>Class Card Profile Image</h2>
+            </div>
+            <p class="section-desc">Preview and drag the image inside the card below to adjust its positioning before saving.</p>
+            
+            <form id="coachCardImageForm" class="settings-form">
+                <!-- Live Schedule Card Preview Component with Drag Capability -->
+                <div class="coach-card-preview-container">
+                    <div class="class-card-custom card-active">
+                        <div class="card-image-container" id="cardImageContainer" title="Click and drag to adjust image position">
+                            <img id="coachCardImg" src="" alt="Class Card Preview" class="card-bg-img" style="display: none; object-position: 50% 50%;">
+                            <div class="card-bg-placeholder" id="coachCardPlaceholder">
+                                <i class="fa-solid fa-image"></i>
+                                <span>Upload an image to preview card</span>
+                            </div>
+                            <div class="card-gradient-overlay"></div>
+                            <div class="card-drag-hint" id="cardDragHint" style="display: none;">
+                                <i class="fa-solid fa-arrows-up-down-left-right"></i> Drag to reposition
+                            </div>
+                            <div class="card-genre-badge">
+                                <span>OPEN CHOREOGRAPHY</span>
+                            </div>
+                            <div class="card-date-badge">
+                                <span class="date-month">OCT</span>
+                                <span class="date-day">05</span>
+                            </div>
+                        </div>
+                        <div class="card-content-area">
+                            <h3 class="card-title">YOUR CLASS TITLE</h3>
+                            
+                            <div class="card-time-pill">
+                                <i class="fas fa-clock"></i> 3:15 PM - 5:00 PM
+                            </div>
+
+                            <div class="card-footer-info">
+                                <div class="card-instructor-venue">
+                                    <span class="card-coach"><i class="fas fa-chalkboard-teacher"></i> Coach Name</span>
+                                    <span class="card-venue"><i class="fas fa-map-marker-alt"></i> Studio A</span>
+                                </div>
+                                <span class="card-price">₱500</span>
+                            </div>
+
+                            <button type="button" class="btn btn-register register-btn" disabled>
+                                REGISTER NOW
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="coach-card-actions">
+                    <label for="coachCardInput" class="btn-secondary">
+                        <i class="fa-solid fa-camera"></i> Change Card Image
+                    </label>
+                    <input type="file" id="coachCardInput" accept="image/*" style="display: none;">
+                    <span class="file-hint">JPG, PNG or GIF (Max 5MB). Click & drag image to reframe.</span>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">
+                        <i class="fa-solid fa-floppy-disk"></i> Save Card Image & Position
+                    </button>
+                </div>
+            </form>
+        </section>
     </main>
 
-    <!-- Universal Header Script (Auto-injects header, navigation drawer, and global modals) -->
+    <!-- Universal Header Script -->
     <script src="../Shared/header.js"></script>
     <!-- Page Logic -->
     <script src="/SettingsPage/SettingsPage.js"></script>
