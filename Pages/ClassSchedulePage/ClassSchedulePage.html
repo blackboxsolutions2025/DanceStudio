@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rhythm & Soul | Class Schedule</title>
+    <link rel="stylesheet" href="../Shared/header.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="ClassSchedulePage.css">
+</head>
+<body>
+
+    <div id="header-placeholder"></div>
+
+    <main class="schedule-main">
+        <div class="schedule-container">
+            <div class="schedule-header-banner">
+                <h1>Studio Class Schedule</h1>
+                <p>Swipe or drag cards left and right to explore upcoming studio sessions.</p>
+            </div>
+
+            <!-- Unified Toolbar Card (Filters + Green Filter Button) -->
+            <div class="schedule-toolbar-card">
+                <div class="toolbar-filters-summary">
+                    <!-- Date Filter Summary -->
+                    <div class="summary-item">
+                        <span class="summary-label"><i class="fas fa-calendar-alt"></i> Date</span>
+                        <span id="summaryDate" class="summary-val">All Upcoming</span>
+                    </div>
+                    <!-- Genre Filter Summary -->
+                    <div class="summary-item">
+                        <span class="summary-label"><i class="fas fa-music"></i> Genre</span>
+                        <span id="summaryGenre" class="summary-val">All Genres</span>
+                    </div>
+                    <!-- Coach Filter Summary -->
+                    <div class="summary-item">
+                        <span class="summary-label"><i class="fas fa-chalkboard-teacher"></i> Coach</span>
+                        <span id="summaryCoach" class="summary-val">All Coaches</span>
+                    </div>
+                </div>
+
+                <button id="openFilterModal" class="filter-trigger-btn-green">
+                    <i class="fas fa-filter"></i> Filter Classes 
+                    <span id="activeFiltersBadge" class="filter-badge" style="display: none;">Active</span>
+                </button>
+            </div>
+
+            <!-- Swipable Card Carousel Section -->
+            <div class="carousel-view-section">
+                <!-- Counter Indicator -->
+                <div class="carousel-counter" id="carouselCounter" style="display: none;">
+                    Class <span id="currentIndexDisplay">1</span> of <span id="totalClassesDisplay">1</span>
+                </div>
+
+                <div id="scheduleCarouselViewport" class="carousel-viewport">
+                    <div id="scheduleTrack" class="carousel-track">
+                        <!-- Dynamically populated via JS -->
+                    </div>
+                </div>
+
+                <!-- Empty View (Shown when no cards match filters) -->
+                <div id="noClassesMessage" class="no-classes" style="display: none;">
+                    <i class="fas fa-calendar-times"></i>
+                    <h3>No classes found</h3>
+                    <p>Try adjusting your filter criteria to see available sessions.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Filter Modal Dialog -->
+    <div id="filterModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-filter"></i> Filter Schedule</h3>
+                <button id="closeFilterModal" class="modal-close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="filter-group">
+                    <label><i class="fas fa-calendar-alt"></i> Date Range</label>
+                    <select id="filterDateRangeMode" class="filter-input">
+                        <option value="all">All Upcoming</option>
+                        <option value="today">This Day (Today)</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                </div>
+
+                <div class="filter-group custom-date-group" id="customDateContainer" style="display: none;">
+                    <label><i class="fas fa-calendar-day"></i> From & To Date</label>
+                    <div class="custom-date-inputs">
+                        <input type="date" id="filterStartDate" class="filter-input">
+                        <input type="date" id="filterEndDate" class="filter-input">
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <label><i class="fas fa-music"></i> Genre</label>
+                    <select id="filterGenre" class="filter-input">
+                        <option value="">All Genres</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label><i class="fas fa-chalkboard-teacher"></i> Coach</label>
+                    <select id="filterCoach" class="filter-input">
+                        <option value="">All Coaches</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="resetModalFilters" class="btn btn-secondary">Reset</button>
+                <button id="applyModalFilters" class="btn btn-primary">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../Shared/success-modal.js"></script>
+    <script src="../Shared/error-modal.js"></script>
+    <script src="../Shared/confirmation-modal.js"></script>
+    <script src="../Shared/header.js"></script>
+    <script src="ClassSchedulePage.js"></script>
+</body>
+</html>

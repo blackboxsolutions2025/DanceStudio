@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rhythm & Soul | Account Access</title>
+    <!-- Shared Header Styles -->
+    <link rel="stylesheet" href="../Shared/header.css">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Page Specific Styles -->
+    <link rel="stylesheet" href="LoginPage.css">
+</head>
+<body>
+
+    <!-- Shared Header Placeholder -->
+    <div id="header-placeholder"></div>
+
+    <main class="auth-main">
+        <div class="auth-container">
+            <!-- Verification Alert Box (Shown if redirected after email confirmation) -->
+            <div id="verificationAlert" class="alert-box success" style="display: none;">
+                <i class="fas fa-check-circle"></i> Email verified successfully! You can now log in.
+            </div>
+
+            <div class="auth-card">
+                <div class="auth-header-tabs">
+                    <button id="tabLogin" class="tab-btn active" onclick="switchState('login')">Log In</button>
+                    <button id="tabSignup" class="tab-btn" onclick="switchState('signup')">Sign Up</button>
+                </div>
+
+                <!-- FORM STATE 1: LOG IN -->
+                <form id="loginForm" class="auth-form">
+                    <h2>Welcome Back</h2>
+                    <p class="subtitle">Enter your credentials to access your student dashboard.</p>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-envelope"></i> Email Address</label>
+                        <input type="email" id="loginEmail" required placeholder="student@rhythmsoul.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><i class="fas fa-lock"></i> Password</label>
+                        <input type="password" id="loginPassword" required placeholder="••••••••">
+                    </div>
+
+                    <div class="form-actions-row">
+                        <a href="../ForgotPasswordPage/ForgotPasswordPage.html" class="forgot-link">Forgot Password?</a>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Log In</button>
+
+                    <p class="toggle-prompt">Don't have an account? <span onclick="switchState('signup')">Sign up here</span></p>
+                </form>
+
+                <!-- FORM STATE 2: SIGN UP -->
+                <form id="signupForm" class="auth-form" style="display: none;">
+                    <h2>Join the Studio</h2>
+                    <p class="subtitle">Create your student account to book classes and order merch.</p>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-user"></i> Full Name</label>
+                        <input type="text" id="signupName" required placeholder="Jane Doe">
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-envelope"></i> Email Address</label>
+                        <input type="email" id="signupEmail" required placeholder="student@rhythmsoul.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-phone"></i> Phone Number</label>
+                        <input type="tel" id="signupPhone" required placeholder="+63 912 345 6789">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><i class="fas fa-lock"></i> Password</label>
+                        <input type="password" id="signupPassword" required placeholder="Create a strong password">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Create Account</button>
+
+                    <p class="toggle-prompt">Already have an account? <span onclick="switchState('login')">Log in here</span></p>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Global Modal Scripts -->
+    <script src="../Shared/success-modal.js"></script>
+    <script src="../Shared/error-modal.js"></script>
+    <!-- Shared Header Script -->
+    <script src="../Shared/header.js"></script>
+    <!-- Page Specific Script -->
+    <script src="LoginPage.js"></script>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rhythm & Soul | Dance Studio</title>
+    <!-- Shared Header Styles -->
+    <link rel="stylesheet" href="../Shared/header.css">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Page Specific Styles -->
+    <link rel="stylesheet" href="LandingPage.css">
+</head>
+<body>
+
+    <!-- Shared Header Placeholder (Must be right here at the top of body) -->
+    <div id="header-placeholder"></div>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="hero-overlay"></div>
+            <div class="hero-content">
+                <h1>Move Your Body, Find Your Rhythm</h1>
+                <p>Join energetic classes led by world-class instructors. All levels welcome!</p>
+                <div class="hero-buttons">
+                    <a href="../Schedule/Schedule.html" class="btn btn-primary">Book a Class</a>
+                    <a href="../Shop/Shop.html" class="btn btn-secondary">Explore Merch</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Featured Classes Carousel/Grid Section -->
+        <section class="featured-classes container">
+            <div class="section-header">
+                <h2>Featured Classes</h2>
+                <p>Discover our most popular sessions running this week.</p>
+            </div>
+            <div class="classes-grid">
+                <div class="class-card">
+                    <div class="class-img hip-hop"></div>
+                    <div class="class-info">
+                        <span class="badge">Hip Hop</span>
+                        <h3>Urban Groove & Choreography</h3>
+                        <p class="instructor-name">With Coach Mike</p>
+                        <p class="class-time">Tue & Thu • 6:00 PM</p>
+                        <a href="../Schedule/Schedule.html" class="btn-text">Book Spot <i class="fas fa-arrow-right"></i></a>
+                    </div>
+                </div>
+                <div class="class-card">
+                    <div class="class-img contemporary"></div>
+                    <div class="class-info">
+                        <span class="badge">Contemporary</span>
+                        <h3>Lyrical Flow & Expression</h3>
+                        <p class="instructor-name">With Sarah Jenkins</p>
+                        <p class="class-time">Mon & Wed • 7:30 PM</p>
+                        <a href="../Schedule/Schedule.html" class="btn-text">Book Spot <i class="fas fa-arrow-right"></i></a>
+                    </div>
+                </div>
+                <div class="class-card">
+                    <div class="class-img heels"></div>
+                    <div class="class-info">
+                        <span class="badge">Commercial Heels</span>
+                        <h3>High Heels Technique</h3>
+                        <p class="instructor-name">With Chloe V.</p>
+                        <p class="class-time">Friday • 8:00 PM</p>
+                        <a href="../Schedule/Schedule.html" class="btn-text">Book Spot <i class="fas fa-arrow-right"></i></a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Merch Teaser Section -->
+        <section class="merch-teaser">
+            <div class="container merch-container">
+                <div class="merch-text">
+                    <h2>Rock the Studio Vibe</h2>
+                    <p>Upgrade your dance wardrobe with our breathable, premium studio apparel engineered for comfort and style.</p>
+                    <a href="../Shop/Shop.html" class="btn btn-primary">Visit the Shop</a>
+                </div>
+                <div class="merch-products-preview">
+                    <div class="merch-item">
+                        <div class="merch-img hoodie"></div>
+                        <h4>Signature Oversized Hoodie</h4>
+                        <span class="price">₱1,499</span>
+                    </div>
+                    <div class="merch-item">
+                        <div class="merch-img sweatpants"></div>
+                        <h4>Studio Motion Sweatpants</h4>
+                        <span class="price">₱1,199</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- About & Instructors Section -->
+        <section id="about" class="about-section container">
+            <div class="section-header">
+                <h2>Our Story & Instructors</h2>
+                <p>Building community trust, passion, and artistic excellence since 2020.</p>
+            </div>
+            <div class="studio-story">
+                <p>Founded with a vision to create an inclusive, high-energy sanctuary for dancers of all backgrounds, Rhythm & Soul Studios is more than just a dance space—it's a family. Whether you're stepping onto the floor for the very first time or training for the professional stage, our doors are open to push your limits and celebrate movement.</p>
+            </div>
+
+            <h3 class="instructor-title">Meet Your Instructors</h3>
+            <div class="instructor-grid">
+                <div class="instructor-card" data-instructor="mike">
+                    <div class="instructor-headshot mike"></div>
+                    <h4>Mike Alvarez</h4>
+                    <span>Hip Hop & Street Jazz</span>
+                </div>
+                <div class="instructor-card" data-instructor="sarah">
+                    <div class="instructor-headshot sarah"></div>
+                    <h4>Sarah Jenkins</h4>
+                    <span>Contemporary & Lyrical</span>
+                </div>
+                <div class="instructor-card" data-instructor="chloe">
+                    <div class="instructor-headshot chloe"></div>
+                    <h4>Chloe Vance</h4>
+                    <span>Commercial Heels</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact & Location Section -->
+        <section id="contact" class="contact-location-section">
+            <div class="container contact-grid">
+                <div class="contact-info-col">
+                    <h2>Find & Contact Us</h2>
+                    <p class="address-detail"><i class="fas fa-map-marker-alt"></i> 4th Floor, Dance Hub Building, JP Laurel Ave, Davao City</p>
+                    <p class="parking-detail"><i class="fas fa-car"></i> Free basement parking available for enrolled students.</p>
+                    <p class="phone-detail"><i class="fas fa-phone-alt"></i> +63 912 345 6789</p>
+                    <p class="email-detail"><i class="fas fa-envelope"></i> support@rhythmsoulstudio.com</p>
+
+                    <div class="operating-hours">
+                        <h4>Studio Operating Hours</h4>
+                        <table>
+                            <tr><td>Monday - Friday</td><td>10:00 AM - 10:00 PM</td></tr>
+                            <tr><td>Saturday</td><td>9:00 AM - 8:00 PM</td></tr>
+                            <tr><td>Sunday</td><td>1:00 PM - 6:00 PM</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="contact-form-col">
+                    <h3>Send Us a Message</h3>
+                    <form id="contactForm">
+                        <div class="form-group">
+                            <input type="text" id="name" placeholder="Your Name" required>
+                        </div>
+                        <div class="form-group">
+                            <input type="email" id="email" placeholder="Your Email" required>
+                        </div>
+                        <div class="form-group">
+                            <input type="text" id="subject" placeholder="Subject" required>
+                        </div>
+                        <div class="form-group">
+                            <textarea id="message" rows="4" placeholder="Your Message" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Send Message</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Embedded Google Map -->
+            <div class="map-container">
+                <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3959.3541578351057!2d125.609489!3d7.073611!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zN8KwMDQnMjUuMCJOIDEyNcKwMzUnMzQuMiJF!5e0!3m2!1sen!2sph!4v1620000000000!5m2!1sen!2sph" width="100%" height="350" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container footer-grid">
+            <div class="footer-brand">
+                <h3>Rhythm & Soul</h3>
+                <p>Igniting passion through movement.</p>
+                <div class="social-links">
+                    <a href="#"><i class="fab fa-facebook-f"></i></a>
+                    <a href="#"><i class="fab fa-instagram"></i></a>
+                    <a href="#"><i class="fab fa-tiktok"></i></a>
+                    <a href="#"><i class="fab fa-youtube"></i></a>
+                </div>
+            </div>
+            <div class="footer-links">
+                <h4>Quick Links</h4>
+                <ul>
+                    <li><a href="../Schedule/Schedule.html">Schedule</a></li>
+                    <li><a href="../Shop/Shop.html">Shop</a></li>
+                    <li><a href="#about">About</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                </ul>
+            </div>
+            <div class="footer-newsletter">
+                <h4>Stay Updated</h4>
+                <p>Subscribe for early access to workshop drops and merch sales.</p>
+                <form id="newsletterForm">
+                    <input type="email" placeholder="Enter your email" required>
+                    <button type="submit" class="btn btn-primary">Join</button>
+                </form>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2026 Rhythm & Soul Dance Studio. All rights reserved. | <a href="#">Privacy Policy</a> | <a href="#">Terms of Service</a></p>
+        </div>
+    </footer>
+
+    <!-- Instructor Bio Modal -->
+    <div id="instructorModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <div id="modalBody">
+                <!-- Dynamically populated via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Shared Header Script -->
+    <script src="../Shared/header.js"></script>
+    <!-- Page Specific Script -->
+    <script src="LandingPage.js"></script>
+</body>
+</html>
