@@ -1,0 +1,331 @@
+:root {
+    --bg-dark: #0f1015;
+    --bg-card: #181a20;
+    --green-primary: #10b981;
+    --green-hover: #059669;
+    --green-light: rgba(16, 185, 129, 0.15);
+    --text-main: #ffffff;
+    --text-muted: #94a3b8;
+    --border-color: #2b2f3a;
+    --transition: all 0.3s ease;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+}
+
+.coach-list-main {
+    padding: 3rem 2rem;
+    min-height: calc(100vh - 65px);
+    box-sizing: border-box;
+}
+
+.coach-container {
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+/* Action Toolbar with Right-Aligned Add Coach Button */
+.coach-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    background-color: var(--bg-card);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    gap: 1.5rem;
+}
+
+.toolbar-title {
+    margin-bottom: 0.75rem;
+}
+
+.toolbar-title h1 {
+    font-size: 1.8rem;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 0 0 5px 0;
+}
+
+.toolbar-title p {
+    color: var(--text-muted);
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+.toolbar-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    flex: 1;
+}
+
+.toolbar-search-wrap {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.toolbar-button-wrap {
+    display: flex;
+    align-items: center;
+}
+
+.search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.search-box i {
+    position: absolute;
+    left: 14px;
+    color: var(--text-muted);
+}
+
+.search-box input {
+    background-color: var(--bg-dark);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50px;
+    padding: 10px 16px 10px 40px;
+    color: var(--text-main);
+    font-size: 0.95rem;
+    width: 260px;
+    transition: var(--transition);
+}
+
+.search-box input:focus {
+    outline: none;
+    border-color: var(--green-primary);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 22px;
+    border-radius: 50px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: var(--transition);
+    border: none;
+    font-size: 0.95rem;
+}
+
+.btn-primary {
+    background-color: var(--green-primary);
+    color: var(--bg-dark);
+}
+
+.btn-primary:hover {
+    background-color: var(--green-hover);
+    color: #ffffff;
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+}
+
+/* Table Layout */
+.table-responsive-container {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    overflow-x: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.coach-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: center;
+}
+
+.coach-table th,
+.coach-table td {
+    padding: 1.25rem 1rem;
+    vertical-align: middle;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+}
+
+.coach-table th:last-child,
+.coach-table td:last-child {
+    border-right: none;
+}
+
+.coach-table th {
+    background-color: rgba(24, 26, 32, 0.95);
+    color: var(--green-primary);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+}
+
+.coach-table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.coach-table tbody tr:hover {
+    background-color: rgba(16, 185, 129, 0.04);
+}
+
+.coach-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Avatar Styling */
+.avatar-cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.coach-avatar {
+    width: 55px;
+    height: 55px;
+    border-radius: 50%;
+    background-color: var(--green-light);
+    border: 2px solid var(--green-primary);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    color: var(--green-primary);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.coach-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Name & Role */
+.coach-name-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.coach-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin: 0;
+}
+
+.coach-role-badge {
+    font-size: 0.75rem;
+    background-color: var(--green-light);
+    color: var(--green-primary);
+    padding: 3px 12px;
+    border-radius: 50px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* Contact Info */
+.contact-info-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.92rem;
+    color: var(--text-muted);
+}
+
+.contact-info-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.contact-info-item i {
+    color: var(--green-primary);
+}
+
+/* Loading & Empty States */
+.state-container {
+    background-color: var(--bg-card);
+    border: 1px dashed var(--border-color);
+    border-radius: 16px;
+    padding: 4rem 2rem;
+    text-align: center;
+    color: var(--text-muted);
+    margin-top: 2rem;
+}
+
+.state-container i {
+    font-size: 3rem;
+    color: var(--green-primary);
+    margin-bottom: 1rem;
+}
+
+.state-container h3 {
+    font-size: 1.3rem;
+    color: var(--text-main);
+    margin: 0 0 0.5rem 0;
+}
+
+.state-container p {
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+/* Clickable Contact Links */
+.contact-link {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: var(--transition);
+}
+
+.contact-link:hover {
+    color: var(--green-primary);
+    text-decoration: underline;
+}
+
+/* --- Mobile Responsiveness Fix --- */
+@media (max-width: 768px) {
+    .coach-list-main {
+        padding: 1.5rem 1rem;
+    }
+
+    .coach-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 1.25rem;
+        gap: 1rem;
+    }
+
+    .toolbar-button-wrap {
+        width: 100%;
+    }
+
+    .toolbar-button-wrap .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .search-box {
+        width: 100%;
+    }
+
+    .search-box input {
+        width: 100%;
+        box-sizing: border-box;
+    }
+}

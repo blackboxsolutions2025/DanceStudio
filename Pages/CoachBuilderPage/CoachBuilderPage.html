@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coach Builder - Rhythm & Soul Dance Studio</title>
+    <link rel="stylesheet" href="CoachBuilderPage.css">
+</head>
+<body>
+    <!-- Global Header Placeholder -->
+    <div id="header-placeholder"></div>
+
+    <main class="coach-builder-container">
+        <div class="builder-header-section">
+            <div class="title-wrapper">
+                <h1><i class="fa-solid fa-chalkboard-user"></i> Add New Coach</h1>
+                <p>Create a new instructor profile and user account for the studio.</p>
+            </div>
+            <a href="../CoachListPage/CoachListPage.html" class="btn-back">
+                <i class="fa-solid fa-arrow-left"></i> Back to Instructors
+            </a>
+        </div>
+
+        <div class="builder-card">
+            <form id="coachBuilderForm">
+                <div class="form-grid">
+                    <!-- Personal & Account Information -->
+                    <div class="form-section-title" style="grid-column: span 2;">
+                        <i class="fa-solid fa-user"></i> Account & Personal Details
+                    </div>
+                    
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label for="coachName">Full Name *</label>
+                        <input type="text" id="coachName" name="name" required placeholder="Enter coach's full name">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="coachEmail">Email Address *</label>
+                        <input type="email" id="coachEmail" name="email" required placeholder="Enter email address">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="coachPhone">Phone Number *</label>
+                        <input type="text" id="coachPhone" name="phone" required placeholder="Enter phone number">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel" id="cancelBtn">Cancel</button>
+                    <button type="submit" class="btn-submit" id="submitBtn">
+                        <i class="fa-solid fa-check"></i> Save & Send Invite
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <!-- Global Header Script (Auto-loads header, font-awesome, and global modals)[cite: 4] -->
+    <script src="../Shared/header.js"></script>
+    <script src="CoachBuilderPage.js"></script>
+</body>
+</html>

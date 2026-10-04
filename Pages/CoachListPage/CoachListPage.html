@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instructor Management - Rhythm & Soul Dance Studio</title>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Shared Header CSS -->
+    <link rel="stylesheet" href="../Shared/header.css">
+    <!-- Page Specific CSS -->
+    <link rel="stylesheet" href="CoachListPage.css">
+</head>
+<body>
+
+    <!-- Header Placeholder -->
+    <div id="header-placeholder"></div>
+
+    <main class="coach-list-main">
+        <div class="coach-container">
+            <!-- Action Toolbar (Add Coach Button on the Right) -->
+            <div class="coach-toolbar">
+                <div class="toolbar-left">
+                    <div class="toolbar-title">
+                        <h1>Instructor Management</h1>
+                        <p>View, search, and manage all registered studio instructors and their credentials.</p>
+                    </div>
+                    <div class="toolbar-search-wrap">
+                        <div class="search-box">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="coachSearchInput" placeholder="Search by name or email...">
+                        </div>
+                    </div>
+                </div>
+                <div class="toolbar-button-wrap">
+                    <a href="../CoachBuilderPage/CoachBuilderPage.html" class="btn btn-primary add-coach-btn">
+                        <i class="fa-solid fa-user-plus"></i> Add Coach
+                    </a>
+                </div>
+            </div>
+
+            <!-- Coach Table Wrapper -->
+            <div class="table-responsive-container">
+                <table class="coach-table" id="coachTable">
+                    <thead>
+                        <tr>
+                            <th>Avatar</th>
+                            <th>Instructor Name & Role</th>
+                            <th>Contact Information</th>
+                        </tr>
+                    </thead>
+                    <tbody id="coachTableBody">
+                        <!-- Dynamically populated via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Loading State Placeholder -->
+            <div id="loadingState" class="state-container">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                <h3>Loading Instructors...</h3>
+                <p>Please wait while we retrieve the coach records.</p>
+            </div>
+
+            <!-- Empty State Placeholder -->
+            <div id="emptyState" class="state-container" style="display: none;">
+                <i class="fa-solid fa-chalkboard-user"></i>
+                <h3>No Coaches Found</h3>
+                <p>No instructors match your search criteria or none have been added yet.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Global Modals -->
+    <script src="../Shared/success-modal.js"></script>
+    <script src="../Shared/error-modal.js"></script>
+    <script src="../Shared/confirmation-modal.js"></script>
+    <!-- Shared Header JS -->
+    <script src="../Shared/header.js"></script>
+    <!-- Page Specific Script -->
+    <script src="CoachListPage.js"></script>
+</body>
+</html>

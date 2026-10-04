@@ -58,6 +58,10 @@ app.get('/settings', (req, res) => {
 
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'Pages', 'AdminDashboardPage', 'AdminDashboardPage.html'));
+});
+
 // --- Database Connection Pool ---
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
@@ -182,7 +186,7 @@ app.post('/api/auth/login', async (req, res) => {
         }
 
         const token = jwt.sign(
-            { id: user.id, email: user.email, name: user.name },
+            { id: user.id, email: user.email, name: user.name, role: user.role }, // <-- Added role here
             process.env.JWT_SECRET || 'fallback_secret',
             { expiresIn: '7d' }
         );
@@ -485,8 +489,117 @@ app.get('/api/coaches', async (req, res) => {
     }
 });
 
+// --- Admin: Delete Coach & Associated Account ---
+app.delete('/api/admin/coaches/:id', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Access denied. Administrator privileges required.' });
+        }
+        const coachId = req.params.id;
+        const [coach] = await pool.execute('SELECT user_id FROM coach WHERE id = ?', [coachId]);
+        if (coach.length === 0) {
+            return res.status(404).json({ message: 'Coach not found.' });
+        }
+        const userId = coach[0].user_id;
+        await pool.execute('DELETE FROM users WHERE id = ?', [userId]);
+        res.json({ message: 'Coach and associated user account successfully deleted.' });
+    } catch (err) {
+        console.error('Delete Coach Error:', err);
+        res.status(500).json({ message: 'Server error while deleting coach.' });
+    }
+});
 
+// --- Admin: Get All Coaches with User Details ---
+app.get('/api/admin/coaches', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Access denied. Administrator privileges required.' });
+        }
 
+        const query = `
+            SELECT c.id, c.name, u.profile_image AS profileimage, c.classimage, c.createdat, u.email, u.phone 
+            FROM coach c 
+            JOIN users u ON c.user_id = u.id 
+            ORDER BY c.name ASC
+        `;
+        const [coaches] = await pool.execute(query);
+
+        // Map image paths to full public URLs
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const formattedCoaches = coaches.map(coach => ({
+            ...coach,
+            profileimage: coach.profileimage ? `${baseUrl}/uploads/${coach.profileimage}` : null,
+            classimage: coach.classimage ? `${baseUrl}/uploads/${coach.classimage}` : null
+        }));
+
+        res.json(formattedCoaches);
+    } catch (err) {
+        console.error('Fetch Coaches Error:', err);
+        res.status(500).json({ message: 'Server error while fetching coaches.' });
+    }
+});
+
+// --- Admin: Create Coach Endpoint ---
+app.post('/api/admin/coaches', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Access denied. Administrator privileges required.' });
+        }
+
+        const { name, email, phone } = req.body;
+
+        // Check if user already exists[cite: 2]
+        const [existing] = await pool.execute('SELECT id FROM users WHERE email = ?', [email]);
+        if (existing.length > 0) {
+            return res.status(400).json({ message: 'Email is already registered.' });
+        }
+
+        // Automatically hash default password '123456789'[cite: 2]
+        const defaultPassword = '123456789';
+        const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+        const verificationToken = crypto.randomBytes(32).toString('hex');
+
+        // Insert into users table with role 'coach' and unverified status
+        const [userResult] = await pool.execute(
+            'INSERT INTO users (name, email, password, phone, status, role, verification_token) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [name, email, hashedPassword, phone, 'unverified', 'coach', verificationToken]
+        );
+
+        const userId = userResult.insertId;
+
+        // Insert into coach table linked via user_id[cite: 1]
+        await pool.execute(
+            'INSERT INTO coach (user_id, name) VALUES (?, ?)',
+            [userId, name]
+        );
+
+        // Build Confirmation Link pointing to verification route[cite: 2]
+        const confirmLink = `http://localhost:3000/api/auth/verify?token=${verificationToken}`;
+
+        // Send Email via Nodemailer to the Coach[cite: 2]
+        await transporter.sendMail({
+            from: '"Rhythm & Soul Dance Studio" <no-reply@rhythmsoul.com>',
+            to: email,
+            subject: 'Welcome Coach! Confirm Your Account - Rhythm & Soul',
+            html: `
+                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f1015; color: #ffffff; padding: 30px; border-radius: 12px; max-width: 500px; margin: auto;">
+                    <h2 style="color: #10b981; margin-bottom: 10px;">Welcome to the Team, Coach ${name}!</h2>
+                    <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;">An instructor account has been created for you at Rhythm & Soul Dance Studio. Your temporary default password is: <strong style="color: #ffffff;">123456789</strong></p>
+                    <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;">Please click the button below to verify your email address and activate your account:</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="${confirmLink}" style="display: inline-block; background-color: #10b981; color: #0f1015; padding: 12px 25px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 1rem;">Verify Email & Login</a>
+                    </div>
+                    <p style="color: #a0a5b1; font-size: 0.85rem; border-top: 1px solid #2b2f3a; padding-top: 15px;">We recommend updating your password in your settings after logging in.</p>
+                </div>
+            `
+        });
+
+        res.status(201).json({ message: 'Coach account successfully created and verification email sent!' });
+    } catch (err) {
+        console.error('Create Coach Error:', err);
+        res.status(500).json({ message: 'Server error while creating coach or sending email.' });
+    }
+});
 
 
 

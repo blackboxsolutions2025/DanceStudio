@@ -1,0 +1,31 @@
+body {
+    background-color: #0f1015;
+    color: #ffffff;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+}
+
+.admin-main {
+    min-height: calc(100vh - 65px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.admin-card {
+    background-color: #181a20;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    border-radius: 16px;
+    padding: 3rem 4rem;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.admin-card h1 {
+    font-size: 2.2rem;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 0;
+}

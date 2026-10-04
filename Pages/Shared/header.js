@@ -42,7 +42,6 @@
                     userAvatar = null;
                 }
             } else if (profileRes.status === 401 || profileRes.status === 403) {
-                // Clear stale/expired token silently so it doesn't log 403 errors
                 localStorage.removeItem('token');
                 localStorage.removeItem('userName');
                 localStorage.removeItem('userRole');
@@ -115,6 +114,15 @@
         </div>
     `;
 
+    // Conditionally generate Admin Dashboard link if user role is admin
+    let adminNavLinkHTML = '';
+    if (userRole === 'admin') {
+        adminNavLinkHTML = `
+            <li><a href="../AdminDashboardPage/AdminDashboardPage.html" class="${currentPath.includes('AdminDashboardPage') ? 'active' : ''}"><i class="fa-solid fa-gauge-high"></i> Admin Dashboard</a></li>
+            <li><a href="../CoachListPage/CoachListPage.html" class="${currentPath.includes('CoachListPage') ? 'active' : ''}"><i class="fa-solid fa-chalkboard-user"></i> Instructor Management</a></li>
+        `;
+    }
+
     const headerHTML = `
         <header class="site-header">
             <button class="hamburger-btn" id="hamburgerBtn" aria-label="Open Navigation">
@@ -140,6 +148,7 @@
                 <li><a href="../Shop/Shop.html" class="${currentPath.includes('Shop') ? 'active' : ''}"><i class="fa-solid fa-store"></i> Shop</a></li>
                 <li><a href="../LandingPage/LandingPage.html#about" class="${currentPath.includes('#about') ? 'active' : ''}"><i class="fa-solid fa-users"></i> About</a></li>
                 <li><a href="../LandingPage/LandingPage.html#contact" class="${currentPath.includes('#contact') ? 'active' : ''}"><i class="fa-solid fa-envelope"></i> Contact</a></li>
+                ${adminNavLinkHTML}
             </ul>
         </nav>
     `;
@@ -201,8 +210,18 @@
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
-            localStorage.clear();
-            window.location.href = '../LoginPage/LoginPage.html';
+            try {
+                const confirmed = typeof window.showConfirmModal === 'function' 
+                    ? await window.showConfirmModal('Are you sure you want to log out of your account?', 'Log Out Confirmation', 'Log Out', 'Cancel')
+                    : confirm('Are you sure you want to log out?');
+
+                if (confirmed) {
+                    localStorage.clear();
+                    window.location.href = '../LoginPage/LoginPage.html';
+                }
+            } catch (err) {
+                console.error(err);
+            }
         });
     }
 })();
