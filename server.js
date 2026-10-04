@@ -434,12 +434,14 @@ app.put('/api/user/profile', authenticateToken, upload.single('profileImage'), a
 // --- Get All Classes with Filters ---
 app.get('/api/classes', async (req, res) => {
     try {
-        const { date, genre, coach } = req.query;
+        const { date, genre, coach, venue } = req.query;
         let query = `
-            SELECT c.*, g.name AS genre_name, ch.name AS coach_name, ch.profileimage AS coach_image, ch.classimage AS coach_class_image 
+            SELECT c.*, g.name AS genre_name, ch.name AS coach_name, v.name AS venue_name, u.profile_image AS coach_image, ch.classimage AS coach_class_image 
             FROM classes c 
             JOIN genre g ON c.genreid = g.id 
             JOIN coach ch ON c.coachid = ch.id 
+            JOIN venue v ON c.venueid = v.id 
+            LEFT JOIN users u ON ch.user_id = u.id 
             WHERE c.schedule_date >= CURDATE()
         `;
         let params = [];
@@ -455,6 +457,10 @@ app.get('/api/classes', async (req, res) => {
         if (coach) {
             query += ' AND c.coachid = ?';
             params.push(coach);
+        }
+        if (venue) {
+            query += ' AND c.venueid = ?';
+            params.push(venue);
         }
 
         query += ' ORDER BY c.schedule_date ASC, c.start_time ASC';
@@ -600,6 +606,80 @@ app.post('/api/admin/coaches', authenticateToken, async (req, res) => {
         res.status(500).json({ message: 'Server error while creating coach or sending email.' });
     }
 });
+
+// --- Get All Venues for Filters ---
+app.get('/api/venues', async (req, res) => {
+    try {
+        const [venues] = await pool.execute('SELECT id, name FROM venue ORDER BY name ASC');
+        res.json(venues);
+    } catch (err) {
+        console.error('Fetch Venues Error:', err);
+        res.status(500).json({ message: 'Server error while fetching venues.' });
+    }
+});
+
+// --- Admin: Create Class Schedule Endpoint ---
+app.post('/api/classes', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Access denied. Administrator privileges required.' });
+        }
+
+        const {
+            title,
+            genreid,
+            coachid,
+            venueid,
+            schedule_date,
+            start_time,
+            end_time,
+            capacity,
+            slots_remaining,
+            price,
+            description
+        } = req.body;
+
+        if (!title || !genreid || !coachid || !venueid || !schedule_date || !start_time || !end_time) {
+            return res.status(400).json({ message: 'Please fill in all required fields.' });
+        }
+
+        // Check for time conflicts at the same venue and date
+        const [conflicts] = await pool.execute(
+            `SELECT id, title, start_time, end_time FROM classes 
+             WHERE venueid = ? AND schedule_date = ? 
+             AND NOT (end_time <= ? OR start_time >= ?)`,
+            [venueid, schedule_date, start_time, end_time]
+        );
+
+        if (conflicts.length > 0) {
+            const conflict = conflicts[0];
+            return res.status(400).json({ 
+                message: `Time conflict: This venue is already booked by "${conflict.title}" from ${conflict.start_time} to ${conflict.end_time} on this date.` 
+            });
+        }
+
+        const finalCapacity = capacity || 20;
+        const finalSlotsRemaining = slots_remaining !== undefined ? slots_remaining : finalCapacity;
+        const finalPrice = price !== undefined ? price : 500.00;
+
+        await pool.execute(
+            `INSERT INTO classes (title, genreid, coachid, venueid, schedule_date, start_time, end_time, capacity, slots_remaining, price, description) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [title, genreid, coachid, venueid, schedule_date, start_time, end_time, finalCapacity, finalSlotsRemaining, finalPrice, description || '']
+        );
+
+        res.status(201).json({ message: 'Class schedule successfully created!' });
+    } catch (err) {
+        console.error('Create Class Error:', err);
+        res.status(500).json({ message: 'Server error while creating class schedule.' });
+    }
+});
+
+
+
+
+
+
 
 
 

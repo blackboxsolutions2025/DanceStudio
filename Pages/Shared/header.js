@@ -120,6 +120,7 @@
         adminNavLinkHTML = `
             <li><a href="../AdminDashboardPage/AdminDashboardPage.html" class="${currentPath.includes('AdminDashboardPage') ? 'active' : ''}"><i class="fa-solid fa-gauge-high"></i> Admin Dashboard</a></li>
             <li><a href="../CoachListPage/CoachListPage.html" class="${currentPath.includes('CoachListPage') ? 'active' : ''}"><i class="fa-solid fa-chalkboard-user"></i> Instructor Management</a></li>
+            <li><a href="../ClassScheduleListPage/ClassScheduleListPage.html" class="${currentPath.includes('ClassScheduleListPage') ? 'active' : ''}"><i class="fa-solid fa-calendar-days"></i> Class Schedule Management</a></li>
         `;
     }
 

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Class Schedule Management - Rhythm & Soul</title>
+    <link rel="stylesheet" href="../Shared/header.css">
+    <link rel="stylesheet" href="ClassScheduleListPage.css">
+</head>
+<body>
+    <!-- Global Header Placeholder -->
+    <div id="header-placeholder"></div>
+
+    <main class="admin-main-container">
+        <!-- Header & Global Controls -->
+        <div class="page-header-row">
+            <div class="title-area">
+                <h1>Class Schedule Management</h1>
+                <p>Monitor, filter, and manage upcoming studio classes and enrollments.</p>
+            </div>
+            <div class="header-action-buttons">
+                <button id="openFilterModalBtn" class="btn-secondary">
+                    <i class="fa-solid fa-filter"></i> Filter
+                </button>
+                <a href="../ClassScheduleBuilderPage/ClassScheduleBuilderPage.html" class="btn-primary">
+                    <i class="fa-solid fa-plus"></i> Add Schedule
+                </a>
+            </div>
+        </div>
+
+        <!-- Active Filter Summary Cards -->
+        <div class="active-filters-container" id="activeFiltersContainer">
+            <div class="filter-badge-card" id="badgeDate">
+                <span class="badge-label"><i class="fa-solid fa-calendar-day"></i> Date</span>
+                <span class="badge-value" id="valDate">All Upcoming Dates</span>
+            </div>
+            <div class="filter-badge-card" id="badgeCoach">
+                <span class="badge-label"><i class="fa-solid fa-chalkboard-user"></i> Instructor</span>
+                <span class="badge-value" id="valCoach">All Instructors</span>
+            </div>
+            <div class="filter-badge-card" id="badgeGenre">
+                <span class="badge-label"><i class="fa-solid fa-music"></i> Style / Genre</span>
+                <span class="badge-value" id="valGenre">All Styles</span>
+            </div>
+            <div class="filter-badge-card" id="badgeVenue">
+                <span class="badge-label"><i class="fa-solid fa-location-dot"></i> Venue</span>
+                <span class="badge-value" id="valVenue">All Venues</span>
+            </div>
+        </div>
+
+        <!-- The Admin Data Table -->
+        <div class="table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>Class Info</th>
+                        <th>Instructor</th>
+                        <th>Venue</th>
+                        <th>Price</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="classTableBody">
+                    <tr>
+                        <td colspan="6" class="loading-row">Loading classes...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Filter Modal -->
+    <div class="modal-overlay" id="filterModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-filter"></i> Filter Classes</h3>
+                <button class="modal-close-btn" id="closeFilterModalBtn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="filter-group">
+                    <label for="modalDateFilter"><i class="fa-solid fa-calendar-day"></i> Date</label>
+                    <input type="date" id="modalDateFilter" class="filter-input">
+                </div>
+                <div class="filter-group">
+                    <label for="modalCoachFilter"><i class="fa-solid fa-chalkboard-user"></i> Instructor</label>
+                    <select id="modalCoachFilter" class="filter-input">
+                        <option value="">All Instructors</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="modalGenreFilter"><i class="fa-solid fa-music"></i> Style / Genre</label>
+                    <select id="modalGenreFilter" class="filter-input">
+                        <option value="">All Styles</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="modalVenueFilter"><i class="fa-solid fa-location-dot"></i> Venue</label>
+                    <select id="modalVenueFilter" class="filter-input">
+                        <option value="">All Venues</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="modalResetBtn" class="btn-secondary">Reset All</button>
+                <button id="modalApplyBtn" class="btn-primary">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../Shared/header.js"></script>
+    <script src="ClassScheduleListPage.js"></script>
+</body>
+</html>

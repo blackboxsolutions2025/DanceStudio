@@ -1,0 +1,396 @@
+/* --- Class Schedule Builder Page Styles --- */
+body {
+    background-color: #0f172a;
+    color: #ffffff;
+    margin: 0;
+    padding-top: 65px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.builder-main-container {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+
+.builder-card {
+    background-color: #1e293b;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    padding: 35px;
+    color: #ffffff;
+}
+
+.builder-header {
+    margin-bottom: 30px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 15px;
+}
+
+.builder-header h2 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.builder-header h2 i {
+    color: #10b981;
+}
+
+.builder-header p {
+    color: #94a3b8;
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+.builder-form .form-section {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 25px;
+    background-color: rgba(15, 23, 42, 0.4);
+}
+
+.builder-form legend {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #10b981;
+    padding: 0 10px;
+    background-color: #1e293b;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 6px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+}
+
+.form-group {
+    margin-bottom: 18px;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-group label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    margin-bottom: 8px;
+}
+
+.form-group label .required {
+    color: #ef4444;
+}
+
+.form-group input,
+.form-group select {
+    background-color: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: #ffffff;
+    font-size: 0.95rem;
+    font-family: inherit;
+    transition: all 0.3s ease;
+}
+
+.form-group input[type="date"],
+.form-group input[type="time"] {
+    color-scheme: dark;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #10b981;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.25);
+}
+
+.form-hint {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 6px;
+    text-align: center;
+}
+
+/* Center-Aligned Time Analysis Wrapper & Button */
+.time-analysis-wrapper {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-analysis {
+    background-color: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    color: #10b981;
+    padding: 11px 22px;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s ease;
+}
+
+.btn-analysis:hover:not(:disabled) {
+    background-color: #10b981;
+    color: #0f1015;
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+}
+
+.btn-analysis:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #64748b;
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* --- Time Analysis Modal Styles --- */
+.analysis-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(3px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 15px;
+    box-sizing: border-box;
+}
+
+.analysis-modal-overlay.active {
+    display: flex;
+    animation: fadeInModal 0.25s ease;
+}
+
+.analysis-modal-card {
+    background-color: #1e293b;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 14px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 85vh;
+    box-sizing: border-box;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7);
+    padding: 20px;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+}
+
+.analysis-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+}
+
+.analysis-modal-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #10b981;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.analysis-close-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 1.4rem;
+    cursor: pointer;
+    padding: 0;
+}
+
+.analysis-close-btn:hover {
+    color: #ffffff;
+}
+
+/* Modal Body Scrollbar & Layout */
+.analysis-modal-body {
+    margin-bottom: 15px;
+    max-height: 50vh;
+    overflow-y: auto;
+    padding-right: 4px;
+    box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(16, 185, 129, 0.4) rgba(255, 255, 255, 0.02);
+}
+
+.analysis-modal-body::-webkit-scrollbar {
+    width: 5px;
+}
+
+.analysis-modal-body::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+}
+
+.analysis-modal-body::-webkit-scrollbar-thumb {
+    background: rgba(16, 185, 129, 0.35);
+    border-radius: 4px;
+}
+
+.analysis-modal-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(16, 185, 129, 0.6);
+}
+
+/* Slot Items (Booked & Free) Layout Protection */
+.free-slot-item,
+.booked-slot-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 12px 14px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+    gap: 6px;
+}
+
+.free-slot-item {
+    background-color: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.booked-slot-item {
+    background-color: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+/* Row 1: Title for Booked (With Truncation) */
+.slot-title {
+    width: 100%;
+    max-width: 100%;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #fca5a5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Row 2: Time Range */
+.slot-time {
+    width: 100%;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #fca5a5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.free-slot-item .slot-time {
+    color: #34d399;
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+/* Row 3 / Bottom: Duration */
+.slot-duration {
+    width: 100%;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.booked-slot-item .slot-duration {
+    color: #fca5a5;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-cancel,
+.btn-submit {
+    padding: 12px 24px;
+    border-radius: 50px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.btn-cancel {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+}
+
+.btn-cancel:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+}
+
+.btn-submit {
+    background-color: #10b981;
+    color: #0f1015;
+}
+
+.btn-submit:hover {
+    background-color: #059669;
+    color: #ffffff;
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+}
+
+@keyframes fadeInModal {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+@media (max-width: 768px) {
+    .builder-main-container {
+        margin: 20px 10px;
+    }
+    .builder-card {
+        padding: 20px;
+    }
+    .form-actions {
+        flex-direction: column-reverse;
+    }
+    .btn-cancel, .btn-submit {
+        width: 100%;
+        justify-content: center;
+    }
+}

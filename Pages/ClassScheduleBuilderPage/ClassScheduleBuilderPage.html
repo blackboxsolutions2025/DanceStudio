@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Class Schedule - Rhythm & Soul</title>
+    <link rel="stylesheet" href="ClassScheduleBuilderPage.css">
+</head>
+<body>
+    <div id="header-placeholder"></div>
+
+    <main class="builder-main-container">
+        <div class="builder-card">
+            <div class="builder-header">
+                <h2><i class="fa-solid fa-calendar-plus"></i> Create New Class Schedule</h2>
+                <p>Fill in the details below to schedule a new dance class session.</p>
+            </div>
+
+            <form id="classBuilderForm" class="builder-form">
+                <!-- 1. General Class Information -->
+                <fieldset class="form-section">
+                    <legend>1. General Class Information</legend>
+                    
+                    <div class="form-group">
+                        <label for="title">Class Title <span class="required">*</span></label>
+                        <input type="text" id="title" name="title" required placeholder="e.g. Advanced Hip Hop Groove">
+                    </div>
+                </fieldset>
+
+                <!-- 2. Dynamic Dropdowns (Relational Data) -->
+                <fieldset class="form-section">
+                    <legend>2. Relational Details</legend>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="genreid">Genre <span class="required">*</span></label>
+                            <select id="genreid" name="genreid" required>
+                                <option value="">Select Genre...</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="coachid">Coach <span class="required">*</span></label>
+                            <select id="coachid" name="coachid" required>
+                                <option value="">Select Coach...</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="venueid">Venue <span class="required">*</span></label>
+                            <select id="venueid" name="venueid" required>
+                                <option value="">Select Venue...</option>
+                            </select>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- 3. Scheduling Controls -->
+                <fieldset class="form-section">
+                    <legend>3. Scheduling Controls</legend>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="schedule_date">Date <span class="required">*</span></label>
+                            <input type="date" id="schedule_date" name="schedule_date" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="start_time">Start Time <span class="required">*</span></label>
+                            <input type="time" id="start_time" name="start_time" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="end_time">End Time <span class="required">*</span></label>
+                            <input type="time" id="end_time" name="end_time" required>
+                        </div>
+                    </div>
+
+                    <!-- Time Analysis Trigger (Center Aligned) -->
+                    <div class="time-analysis-wrapper">
+                        <button type="button" id="timeAnalysisBtn" class="btn-analysis" disabled>
+                            <i class="fa-solid fa-clock-rotate-left"></i> Analyze Availability
+                        </button>
+                        <small class="form-hint">Select a date and venue to check available free time slots.</small>
+                    </div>
+                </fieldset>
+
+                <!-- 4. Logistics & Pricing -->
+                <fieldset class="form-section">
+                    <legend>4. Logistics & Pricing</legend>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="capacity">Capacity (Max Attendees) <span class="required">*</span></label>
+                            <input type="number" id="capacity" name="capacity" value="20" min="1" required>
+                            <small class="form-hint">Slots remaining will automatically match capacity upon creation.</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="price">Price (₱) <span class="required">*</span></label>
+                            <input type="number" id="price" name="price" value="500.00" step="0.01" min="0" required>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- 5. Page Actions -->
+                <div class="form-actions">
+                    <button type="button" id="cancelBtn" class="btn-cancel">
+                        <i class="fa-solid fa-arrow-left"></i> Cancel / Back
+                    </button>
+                    <button type="submit" id="submitBtn" class="btn-submit">
+                        <i class="fa-solid fa-floppy-disk"></i> Save Class Schedule
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <!-- Time Analysis Modal -->
+    <div class="analysis-modal-overlay" id="analysisModal">
+        <div class="analysis-modal-card">
+            <div class="analysis-modal-header">
+                <h3><i class="fa-solid fa-clock"></i> Venue Time Analysis</h3>
+                <button type="button" class="analysis-close-btn" id="closeAnalysisModal">&times;</button>
+            </div>
+            <div class="analysis-modal-body" id="analysisModalBody">
+                <!-- Dynamically populated free time slots -->
+            </div>
+            <div class="analysis-modal-footer">
+                <button type="button" class="btn-cancel" id="dismissAnalysisBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../Shared/header.js"></script>
+    <script src="ClassScheduleBuilderPage.js"></script>
+</body>
+</html>
