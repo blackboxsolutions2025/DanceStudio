@@ -73,6 +73,9 @@
                     <span class="user-role-badge">${formattedRole}</span>
                 </div>
             </div>
+            <a href="../StudentClassSchedulePage/StudentClassSchedulePage.html" class="dropdown-btn">
+                <i class="fa-solid fa-calendar-check"></i> My Schedule
+            </a>
             <a href="../Shop/Orders.html" class="dropdown-btn">
                 <i class="fa-solid fa-box-open"></i> Orders
             </a>
@@ -145,8 +148,8 @@
             </div>
             <ul class="nav-links">
                 <li><a href="../LandingPage/LandingPage.html" class="${currentPath.includes('LandingPage') ? 'active' : ''}"><i class="fa-solid fa-house"></i> Home</a></li>
-                <li><a href="../ClassSchedulePage/ClassSchedulePage.html" class="${currentPath.includes('ClassSchedulePage') ? 'active' : ''}"><i class="fa-solid fa-calendar-alt"></i> Class Schedule</a></li>
-                <li><a href="../Shop/Shop.html" class="${currentPath.includes('Shop') ? 'active' : ''}"><i class="fa-solid fa-store"></i> Shop</a></li>
+                <li><a href="../ClassSchedulePage/ClassSchedulePage.html" class="${currentPath.endsWith('ClassSchedulePage/ClassSchedulePage.html') ? 'active' : ''}"><i class="fa-solid fa-calendar-alt"></i> Class Schedule</a></li>
+                <li><a href="../StudentClassSchedulePage/StudentClassSchedulePage.html" class="${currentPath.endsWith('StudentClassSchedulePage/StudentClassSchedulePage.html') ? 'active' : ''}"><i class="fa-solid fa-calendar-check"></i> My Class Schedule</a></li>                <li><a href="../Shop/Shop.html" class="${currentPath.includes('Shop') ? 'active' : ''}"><i class="fa-solid fa-store"></i> Shop</a></li>
                 <li><a href="../LandingPage/LandingPage.html#about" class="${currentPath.includes('#about') ? 'active' : ''}"><i class="fa-solid fa-users"></i> About</a></li>
                 <li><a href="../LandingPage/LandingPage.html#contact" class="${currentPath.includes('#contact') ? 'active' : ''}"><i class="fa-solid fa-envelope"></i> Contact</a></li>
                 ${adminNavLinkHTML}
@@ -199,7 +202,7 @@
             const css = document.createElement('link');
             css.rel = 'stylesheet';
             css.href = `../Shared/${modalName}.css`;
-            document.head.appendChild(css);
+            document.head.appendChild(src = css);
         }
         if (!document.querySelector(`script[src*="${modalName}.js"]`)) {
             const script = document.createElement('script');

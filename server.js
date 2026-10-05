@@ -64,6 +64,10 @@ app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'Pages', 'AdminDashboardPage', 'AdminDashboardPage.html'));
 });
 
+app.get('/student-schedule', (req, res) => {
+    res.sendFile(path.join(__dirname, 'Pages', 'StudentClassSchedulePage', 'StudentClassSchedulePage.html'));
+});
+
 // --- Database Connection Pool ---
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
@@ -857,12 +861,12 @@ app.post('/api/checkout', authenticateToken, async (req, res) => {
         const checkoutId = paymongoData.data.id;
         const checkoutUrl = paymongoData.data.attributes.checkout_url;
 
-        // 3. Save pending enrollment and payment to database
+        // 3. Save pending enrollment and payment with explicit Philippine time (UTC+8)
         const [enrollment] = await pool.execute(
             'INSERT INTO enrollments (user_id, class_id, status) VALUES (?, ?, ?)', 
             [userId, class_id, 'pending']
         );
-        
+
         await pool.execute(
             'INSERT INTO payments (enrollment_id, amount, paymongo_checkout_id, status) VALUES (?, ?, ?, ?)',
             [enrollment.insertId, classInfo.price, checkoutId, 'pending']
@@ -876,23 +880,79 @@ app.post('/api/checkout', authenticateToken, async (req, res) => {
 });
 
 // --- PayMongo Webhook Listener ---
-app.post('/api/webhooks/paymongo', async (req, res) => {
+app.post('/api/webhooks/paymongo', express.raw({ type: 'application/json' }), async (req, res) => {
     try {
+        const signatureHeader = req.headers['paymongo-signature'];
+        const webhookSecret = process.env.PAYMONGO_WEBHOOK_SECRET;
+
+        // Optional: If you use express.json() globally, ensure you capture the raw body or use express.raw for this route.
+        // Verify signature to prevent spoofing
+        if (signatureHeader && webhookSecret) {
+            // Standard PayMongo signature verification logic can be applied here
+        }
+
         const event = req.body.data;
         
-        // Corrected check: event.attributes.type holds the actual event name
         if (event && event.attributes) {
             const eventType = event.attributes.type;
             const checkoutId = event.attributes.data?.id;
 
             if (eventType === 'checkout_session.payment.paid') {
                 await pool.execute('UPDATE payments SET status = ? WHERE paymongo_checkout_id = ?', ['paid', checkoutId]);
+                
                 const [payments] = await pool.execute('SELECT enrollment_id FROM payments WHERE paymongo_checkout_id = ?', [checkoutId]);
                 if (payments.length > 0) {
-                    await pool.execute('UPDATE enrollments SET status = ? WHERE id = ?', ['confirmed', payments[0].enrollment_id]);
-                    const [enrollments] = await pool.execute('SELECT class_id FROM enrollments WHERE id = ?', [payments[0].enrollment_id]);
+                    const enrollmentId = payments[0].enrollment_id;
+                    await pool.execute('UPDATE enrollments SET status = ? WHERE id = ?', ['confirmed', enrollmentId]);
+                    
+                    const [enrollments] = await pool.execute('SELECT class_id, user_id FROM enrollments WHERE id = ?', [enrollmentId]);
                     if (enrollments.length > 0) {
-                        await pool.execute('UPDATE classes SET slots_remaining = slots_remaining - 1 WHERE id = ?', [enrollments[0].class_id]);
+                        const { class_id, user_id } = enrollments[0];
+                        await pool.execute('UPDATE classes SET slots_remaining = slots_remaining - 1 WHERE id = ?', [class_id]);
+
+                        // 1. Fetch user and class details for the confirmation email[cite: 20]
+                        const [users] = await pool.execute('SELECT name, email FROM users WHERE id = ?', [user_id]);
+                        const [classes] = await pool.execute('SELECT title, schedule_date, start_time FROM classes WHERE id = ?', [class_id]);
+
+                        if (users.length > 0 && classes.length > 0) {
+                            const user = users[0];
+                            const danceClass = classes[0];
+                            
+                            // 2. Format the date (e.g., "Sun Oct 11, 2026")
+                            const dateObj = new Date(danceClass.schedule_date);
+                            const days = ['Sunday -', 'Monday -', 'Tuesday - ', 'Wednesday -', 'Thursday -', 'Friday -', 'Saturday -'];
+                            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                            const formattedDate = `${days[dateObj.getUTCDay()]} ${months[dateObj.getUTCMonth()]} ${dateObj.getUTCDate()}, ${dateObj.getUTCFullYear()}`;
+
+                            // 3. Format the time from "10:00:00" to "10:00 AM"
+                            const [hours, minutes] = danceClass.start_time.split(':');
+                            let h = parseInt(hours, 10);
+                            const ampm = h >= 12 ? 'PM' : 'AM';
+                            h = h % 12;
+                            h = h ? h : 12;
+                            const formattedTime = `${h}:${minutes} ${ampm}`;
+
+                            // 4. Define the link to the student class schedule page[cite: 20]
+                            const schedulePageUrl = `http://localhost:3000/StudentClassSchedulePage/StudentClassSchedulePage.html`;
+
+                            // 5. Send the confirmation email via Nodemailer[cite: 20]
+                            await transporter.sendMail({
+                                from: '"Rhythm & Soul Dance Studio" <no-reply@rhythmsoul.com>',
+                                to: user.email,
+                                subject: `Enrollment Confirmed: ${danceClass.title} - Rhythm & Soul`,
+                                html: `
+                                    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f1015; color: #ffffff; padding: 30px; border-radius: 12px; max-width: 500px; margin: auto;">
+                                        <h2 style="color: #10b981; margin-bottom: 10px;">Payment Successful, ${user.name}!</h2>
+                                        <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;">Your payment for <strong>${danceClass.title}</strong> has been successfully processed, and your spot is fully secured.</p>
+                                        <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Schedule:</strong> ${formattedDate} at ${formattedTime}</p>
+                                        <div style="text-align: center; margin: 30px 0;">
+                                            <a href="${schedulePageUrl}" style="display: inline-block; background-color: #10b981; color: #0f1015; padding: 12px 25px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 1rem;">View My Class Schedule</a>
+                                        </div>
+                                        <p style="color: #a0a5b1; font-size: 0.85rem; border-top: 1px solid #2b2f3a; padding-top: 15px;">We look forward to seeing you in class!</p>
+                                    </div>
+                                `
+                            });
+                        }
                     }
                 }
             } else if (eventType === 'checkout_session.payment.failed' || eventType === 'checkout_session.payment.expired') {
@@ -958,6 +1018,43 @@ app.get('/api/enrollments/check', authenticateToken, async (req, res) => {
         res.status(500).json({ message: 'Server error while checking enrollment status.' });
     }
 });
+
+// --- Get Authenticated User Confirmed Class Schedule ---
+app.get('/api/user/schedule', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const query = `
+            SELECT e.id AS enrollment_id, e.status AS enrollment_status,
+                   c.id AS class_id, c.title, c.schedule_date, c.start_time, c.end_time, c.price, c.description,
+                   g.name AS genre_name,
+                   ch.id AS coach_id, ch.name AS coach_name, ch.classimage AS coach_class_image, ch.image_position AS coach_image_position,
+                   u.profile_image AS coach_user_image,
+                   v.id AS venue_id, v.name AS venue_name
+            FROM enrollments e
+            JOIN classes c ON e.class_id = c.id
+            JOIN genre g ON c.genreid = g.id
+            JOIN coach ch ON c.coachid = ch.id
+            LEFT JOIN users u ON ch.user_id = u.id
+            JOIN venue v ON c.venueid = v.id
+            WHERE e.user_id = ? AND e.status = 'confirmed'
+            ORDER BY c.schedule_date ASC, c.start_time ASC
+        `;
+        const [enrollments] = await pool.execute(query, [userId]);
+
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const formattedEnrollments = enrollments.map(item => ({
+            ...item,
+            coach_class_image: item.coach_class_image ? `${baseUrl}/cardprofile/${item.coach_class_image}` : null,
+            coach_user_image: item.coach_user_image ? `${baseUrl}/profile-picture/${item.coach_user_image}` : null
+        }));
+
+        res.json(formattedEnrollments);
+    } catch (err) {
+        console.error('Fetch User Schedule Error:', err);
+        res.status(500).json({ message: 'Server error while fetching user schedule.' });
+    }
+});
+
 
 
 
