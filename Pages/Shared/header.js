@@ -46,6 +46,7 @@
                 localStorage.removeItem('userName');
                 localStorage.removeItem('userRole');
                 localStorage.removeItem('userAvatar');
+                userRole = '';
             }
         } catch (err) {
             console.error('Failed to sync header profile data:', err);
@@ -59,7 +60,7 @@
         return `<i class="fa-solid ${fallbackIconClass}"></i>`;
     };
 
-    const formattedRole = userRole ? userRole.charAt(0).toUpperCase() + userRole.slice(1) : '';
+    const formattedRole = userRole ? userRole.toUpperCase() : '';
 
     let dropdownContent = '';
     if (token) {
@@ -70,7 +71,7 @@
                 </div>
                 <div class="dropdown-name-col">
                     <span class="username">${userName}</span>
-                    <span class="user-role-badge">${formattedRole}</span>
+                    <span class="user-role-badge">${formattedRole.toLowerCase()}</span>
                 </div>
             </div>
             <a href="../StudentClassSchedulePage/StudentClassSchedulePage.html" class="dropdown-btn">
@@ -117,13 +118,30 @@
         </div>
     `;
 
-    // Conditionally generate Admin Dashboard link if user role is admin
-    let adminNavLinkHTML = '';
-    if (userRole === 'admin') {
-        adminNavLinkHTML = `
-            <li><a href="../AdminDashboardPage/AdminDashboardPage.html" class="${currentPath.includes('AdminDashboardPage') ? 'active' : ''}"><i class="fa-solid fa-gauge-high"></i> Admin Dashboard</a></li>
-            <li><a href="../CoachListPage/CoachListPage.html" class="${currentPath.includes('CoachListPage') ? 'active' : ''}"><i class="fa-solid fa-chalkboard-user"></i> Instructor Management</a></li>
-            <li><a href="../ClassScheduleListPage/ClassScheduleListPage.html" class="${currentPath.includes('ClassScheduleListPage') ? 'active' : ''}"><i class="fa-solid fa-calendar-days"></i> Class Schedule Management</a></li>
+    // --- Role-Based Restricted Section (Below Contact) ---
+    let roleSpecificSectionHTML = '';
+    if (token && userRole) {
+        let roleLinksHTML = '';
+        
+        if (userRole === 'student') {
+            roleLinksHTML = `
+                <li><a href="../StudentClassSchedulePage/StudentClassSchedulePage.html" class="${currentPath.endsWith('StudentClassSchedulePage/StudentClassSchedulePage.html') ? 'active' : ''}"><i class="fa-solid fa-calendar-check"></i> My Class Schedule</a></li>
+            `;
+        } else if (userRole === 'admin') {
+            roleLinksHTML = `
+                <li><a href="../AdminDashboardPage/AdminDashboardPage.html" class="${currentPath.includes('AdminDashboardPage') ? 'active' : ''}"><i class="fa-solid fa-gauge-high"></i> Admin Dashboard</a></li>
+                <li><a href="../CoachListPage/CoachListPage.html" class="${currentPath.includes('CoachListPage') ? 'active' : ''}"><i class="fa-solid fa-chalkboard-user"></i> Instructor Management</a></li>
+                <li><a href="../ClassScheduleListPage/ClassScheduleListPage.html" class="${currentPath.includes('ClassScheduleListPage') ? 'active' : ''}"><i class="fa-solid fa-calendar-days"></i> Class Schedule Management</a></li>
+            `;
+        }
+
+        // Role name placed at the top of the selection without the word "Role:"
+        roleSpecificSectionHTML = `
+            <li class="drawer-separator-li"><hr class="drawer-separator"></li>
+            <li class="drawer-role-display">
+                <i class="fa-solid fa-id-badge"></i> <span><strong>${formattedRole}</strong></span>
+            </li>
+            ${roleLinksHTML}
         `;
     }
 
@@ -149,10 +167,10 @@
             <ul class="nav-links">
                 <li><a href="../LandingPage/LandingPage.html" class="${currentPath.includes('LandingPage') ? 'active' : ''}"><i class="fa-solid fa-house"></i> Home</a></li>
                 <li><a href="../ClassSchedulePage/ClassSchedulePage.html" class="${currentPath.endsWith('ClassSchedulePage/ClassSchedulePage.html') ? 'active' : ''}"><i class="fa-solid fa-calendar-alt"></i> Class Schedule</a></li>
-                <li><a href="../StudentClassSchedulePage/StudentClassSchedulePage.html" class="${currentPath.endsWith('StudentClassSchedulePage/StudentClassSchedulePage.html') ? 'active' : ''}"><i class="fa-solid fa-calendar-check"></i> My Class Schedule</a></li>                <li><a href="../Shop/Shop.html" class="${currentPath.includes('Shop') ? 'active' : ''}"><i class="fa-solid fa-store"></i> Shop</a></li>
+                <li><a href="../Shop/Shop.html" class="${currentPath.includes('Shop') ? 'active' : ''}"><i class="fa-solid fa-store"></i> Shop</a></li>
                 <li><a href="../LandingPage/LandingPage.html#about" class="${currentPath.includes('#about') ? 'active' : ''}"><i class="fa-solid fa-users"></i> About</a></li>
                 <li><a href="../LandingPage/LandingPage.html#contact" class="${currentPath.includes('#contact') ? 'active' : ''}"><i class="fa-solid fa-envelope"></i> Contact</a></li>
-                ${adminNavLinkHTML}
+                ${roleSpecificSectionHTML}
             </ul>
         </nav>
     `;
@@ -202,7 +220,7 @@
             const css = document.createElement('link');
             css.rel = 'stylesheet';
             css.href = `../Shared/${modalName}.css`;
-            document.head.appendChild(src = css);
+            document.head.appendChild(css);
         }
         if (!document.querySelector(`script[src*="${modalName}.js"]`)) {
             const script = document.createElement('script');

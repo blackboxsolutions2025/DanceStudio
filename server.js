@@ -1055,7 +1055,121 @@ app.get('/api/user/schedule', authenticateToken, async (req, res) => {
     }
 });
 
+// --- Get Authenticated User Confirmed Class Schedule with Attendance ---
+app.get('/api/user/schedule', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const query = `
+            SELECT e.id AS enrollment_id, e.status AS enrollment_status,
+                   c.id AS class_id, c.title, c.schedule_date, c.start_time, c.end_time, c.price, c.description,
+                   g.name AS genre_name,
+                   ch.id AS coach_id, ch.name AS coach_name, ch.classimage AS coach_class_image, ch.image_position AS coach_image_position,
+                   u.profile_image AS coach_user_image,
+                   v.id AS venue_id, v.name AS venue_name,
+                   a.time_in, a.time_out,
+                   CASE 
+                       WHEN a.time_out IS NOT NULL THEN 'completed'
+                       WHEN a.time_in IS NOT NULL THEN 'timed_in'
+                       ELSE 'none'
+                   END AS attendance_status
+            FROM enrollments e
+            JOIN classes c ON e.class_id = c.id
+            JOIN genre g ON c.genreid = g.id
+            JOIN coach ch ON c.coachid = ch.id
+            LEFT JOIN users u ON ch.user_id = u.id
+            JOIN venue v ON c.venueid = v.id
+            LEFT JOIN attendance a ON a.user_id = e.user_id AND a.class_id = c.id
+            WHERE e.user_id = ? AND e.status = 'confirmed'
+            ORDER BY c.schedule_date ASC, c.start_time ASC
+        `;
+        const [enrollments] = await pool.execute(query, [userId]);
 
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const formattedEnrollments = enrollments.map(item => ({
+            ...item,
+            coach_class_image: item.coach_class_image ? `${baseUrl}/cardprofile/${item.coach_class_image}` : null,
+            coach_user_image: item.coach_user_image ? `${baseUrl}/profile-picture/${item.coach_user_image}` : null
+        }));
+
+        res.json(formattedEnrollments);
+    } catch (err) {
+        console.error('Fetch User Schedule Error:', err);
+        res.status(500).json({ message: 'Server error while fetching user schedule.' });
+    }
+});
+
+// --- Scan QR Code Attendance Endpoint ---
+app.post('/api/attendance/scan', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { class_id, qr_code } = req.body;
+
+        // Optional: Validate qr_code content if your instructor generates specific tokens (e.g., matching class_id or secret key)
+        
+        // Check if attendance row already exists for this student and class
+        const [existing] = await pool.execute(
+            'SELECT id, time_in, time_out FROM attendance WHERE user_id = ? AND class_id = ?',
+            [userId, class_id]
+        );
+
+        if (existing.length === 0) {
+            // First scan: Record Time-In
+            await pool.execute(
+                'INSERT INTO attendance (user_id, class_id, time_in) VALUES (?, ?, NOW())',
+                [userId, class_id]
+            );
+            return res.json({ message: 'Time-in successfully recorded!' });
+        } else {
+            const record = existing[0];
+            if (!record.time_in) {
+                await pool.execute(
+                    'UPDATE attendance SET time_in = NOW() WHERE id = ?',
+                    [record.id]
+                );
+                return res.json({ message: 'Time-in successfully recorded!' });
+            } else if (!record.time_out) {
+                await pool.execute(
+                    'UPDATE attendance SET time_out = NOW() WHERE id = ?',
+                    [record.id]
+                );
+                return res.json({ message: 'Time-out successfully recorded! Attendance complete.' });
+            } else {
+                return res.status(400).json({ message: 'Attendance for this class has already been completed.' });
+            }
+        }
+    } catch (err) {
+        console.error('Attendance Scan Error:', err);
+        res.status(500).json({ message: 'Server error while recording attendance.' });
+    }
+});
+
+// --- Get Confirmed Attendees for a Specific Class ---
+app.get('/api/classes/:id/attendees', authenticateToken, async (req, res) => {
+    try {
+        const classId = req.params.id;
+        const query = `
+            SELECT u.id AS user_id, u.name, u.email, u.phone, u.profile_image,
+                   e.status AS enrollment_status, p.status AS payment_status, e.created_at AS enrolled_at
+            FROM enrollments e
+            JOIN users u ON e.user_id = u.id
+            LEFT JOIN payments p ON p.enrollment_id = e.id
+            WHERE e.class_id = ? AND e.status = 'confirmed' AND p.status = 'paid'
+            ORDER BY u.name ASC
+        `;
+        const [attendees] = await pool.execute(query, [classId]);
+
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const formattedAttendees = attendees.map(att => ({
+            ...att,
+            profile_image: att.profile_image ? `${baseUrl}/profile-picture/${att.profile_image}` : null
+        }));
+
+        res.json(formattedAttendees);
+    } catch (err) {
+        console.error('Fetch Attendees Error:', err);
+        res.status(500).json({ message: 'Server error while fetching class attendees.' });
+    }
+});
 
 
 

@@ -369,6 +369,46 @@ body {
     color: #f87171;
 }
 
+/* --- Drawer Separator & Role Display Styles --- */
+.drawer-separator-li {
+    padding: 8px 20px;
+    margin: 8px 0;
+}
+
+.drawer-separator {
+    border: none;
+    height: 1px;
+    background-color: rgba(16, 185, 129, 0.25);
+    width: 100%;
+}
+
+.drawer-role-display {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 24px;
+    color: #10b981;
+    font-size: 0.9rem;
+    font-weight: 600;
+    background: rgba(16, 185, 129, 0.06);
+    border-top: 1px dashed rgba(16, 185, 129, 0.2);
+    border-bottom: 1px dashed rgba(16, 185, 129, 0.2);
+    margin-top: 6px;
+}
+
+.drawer-role-display i {
+    width: 20px;
+    text-align: center;
+    color: #10b981;
+}
+
+.drawer-role-display strong {
+    color: #ffffff;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 @keyframes fadeInDropdown {
     from { opacity: 0; transform: translateY(-8px); }
     to { opacity: 1; transform: translateY(0); }

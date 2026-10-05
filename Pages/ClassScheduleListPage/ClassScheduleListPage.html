@@ -108,6 +108,24 @@
         </div>
     </div>
 
+    <!-- Attendees Modal -->
+    <div class="modal-overlay" id="attendeesModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-users"></i> Class Attendees</h3>
+                <button class="modal-close-btn" id="closeAttendeesModalBtn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+                <div id="attendeesListContainer">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="closeAttendeesFooterBtn" class="btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script src="../Shared/header.js"></script>
     <script src="ClassScheduleListPage.js"></script>
 </body>

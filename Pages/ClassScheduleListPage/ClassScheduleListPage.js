@@ -1,13 +1,19 @@
 document.addEventListener('DOMContentLoaded', () => {
     const classTableBody = document.getElementById('classTableBody');
     
-    // Modal Elements
+    // Filter Modal Elements
     const filterModal = document.getElementById('filterModal');
     const openFilterModalBtn = document.getElementById('openFilterModalBtn');
     const closeFilterModalBtn = document.getElementById('closeFilterModalBtn');
     const modalApplyBtn = document.getElementById('modalApplyBtn');
     const modalResetBtn = document.getElementById('modalResetBtn');
     
+    // Attendees Modal Elements
+    const attendeesModal = document.getElementById('attendeesModal');
+    const closeAttendeesModalBtn = document.getElementById('closeAttendeesModalBtn');
+    const closeAttendeesFooterBtn = document.getElementById('closeAttendeesFooterBtn');
+    const attendeesListContainer = document.getElementById('attendeesListContainer');
+
     // Modal Input Elements
     const modalDateFilter = document.getElementById('modalDateFilter');
     const modalCoachFilter = document.getElementById('modalCoachFilter');
@@ -40,7 +46,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Populate Dropdowns from API endpoints
     async function loadFilterOptions() {
         try {
-            // Fetch Coaches[cite: 52]
             const coachesRes = await fetch('/api/coaches');
             if (coachesRes.ok) {
                 const coaches = await coachesRes.json();
@@ -53,7 +58,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
-            // Fetch Genres[cite: 52]
             const genresRes = await fetch('/api/genres');
             if (genresRes.ok) {
                 const genres = await genresRes.json();
@@ -66,7 +70,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
-            // Fetch Venues
             const venuesRes = await fetch('/api/venues');
             if (venuesRes.ok) {
                 const venues = await venuesRes.json();
@@ -83,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 2. Fetch and render classes based on active filters[cite: 52]
+    // 2. Fetch and render classes based on active filters
     async function fetchClasses() {
         try {
             const params = new URLSearchParams();
@@ -167,7 +170,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const classInfo = `<strong class="class-title-truncate" title="${cls.title}">${cls.title}</strong><span class="genre-badge" title="${cls.genre_name}">${cls.genre_name}</span>`;   
             const instructor = cls.coach_name || 'Unassigned';   
             
-            // Combined Venue Name on top and Capacity Badge at the bottom   
             const venueName = cls.venue_name || 'Main Studio';   
             const capacityBadge = `<span class="slots-badge ${cls.slots_remaining === 0 ? 'full' : ''}">${cls.slots_remaining} / ${cls.capacity}</span>`;   
             const venueDisplay = `<strong>${venueName}</strong><br>${capacityBadge}`;   
@@ -183,14 +185,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td>${price}</td>
                     <td class="action-buttons-cell">
                         <div class="action-buttons-wrapper">
-                            <button class="btn-action btn-view" title="View Attendees" onclick="viewAttendees(${cls.id})">
+                            <button class="btn-action btn-view" title="View Attendees" onclick="viewAttendees(${cls.id}, '${cls.title.replace(/'/g, "\\'")}')">
                                 <i class="fa-solid fa-users"></i>
-                            </button>
-                            <button class="btn-action btn-edit" title="Edit Class" onclick="editClass(${cls.id})">
-                                <i class="fa-solid fa-pen-to-square"></i>
-                            </button>
-                            <button class="btn-action btn-delete" title="Delete Class" onclick="deleteClass(${cls.id})">
-                                <i class="fa-solid fa-trash"></i>
                             </button>
                         </div>
                     </td>
@@ -199,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join('');
     }
 
-    // 5. Modal Interaction Handlers
+    // 5. Filter Modal Interaction Handlers
     openFilterModalBtn.addEventListener('click', () => {
         modalDateFilter.value = activeFilters.date;
         modalCoachFilter.value = activeFilters.coach;
@@ -208,13 +204,10 @@ document.addEventListener('DOMContentLoaded', () => {
         filterModal.classList.add('active');
     });
 
-    const closeModal = () => {
-        filterModal.classList.remove('active');
-    };
-
-    closeFilterModalBtn.addEventListener('click', closeModal);
+    const closeFilterModal = () => filterModal.classList.remove('active');
+    closeFilterModalBtn.addEventListener('click', closeFilterModal);
     filterModal.addEventListener('click', (e) => {
-        if (e.target === filterModal) closeModal();
+        if (e.target === filterModal) closeFilterModal();
     });
 
     modalApplyBtn.addEventListener('click', () => {
@@ -222,7 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
         activeFilters.coach = modalCoachFilter.value;
         activeFilters.genre = modalGenreFilter.value;
         activeFilters.venue = modalVenueFilter.value;
-        closeModal();
+        closeFilterModal();
         fetchClasses();
     });
 
@@ -233,33 +226,96 @@ document.addEventListener('DOMContentLoaded', () => {
         modalVenueFilter.value = '';
     });
 
-    // Global Utility Action Handlers
-    window.viewAttendees = (classId) => {
-        alert(`Opening attendee list for class ID: ${classId}`);
-    };
+    // 6. Attendees Modal Handlers
+    const closeAttendeesModal = () => attendeesModal.classList.remove('active');
+    if (closeAttendeesModalBtn) closeAttendeesModalBtn.addEventListener('click', closeAttendeesModal);
+    if (closeAttendeesFooterBtn) closeAttendeesFooterBtn.addEventListener('click', closeAttendeesModal);
+    if (attendeesModal) {
+        attendeesModal.addEventListener('click', (e) => {
+            if (e.target === attendeesModal) closeAttendeesModal();
+        });
+    }
 
-    window.editClass = (classId) => {
-        window.location.href = `../ClassScheduleBuilderPage/ClassScheduleBuilderPage.html?edit=${classId}`;
-    };
+    window.viewAttendees = async (classId, classTitle) => {
+        attendeesListContainer.innerHTML = '<p style="text-align: center; color: #94a3b8; padding: 20px;">Loading attendees...</p>';
+        attendeesModal.classList.add('active');
 
-    window.deleteClass = async (classId) => {
-        if (confirm('Are you sure you want to delete this class schedule?')) {
-            try {
-                const token = localStorage.getItem('token');
-                const res = await fetch(`/api/classes/${classId}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    fetchClasses();
-                } else {
-                    const data = await res.json();
-                    alert(data.message || 'Failed to delete class.');
-                }
-            } catch (err) {
-                console.error('Delete error:', err);
-                alert('Server error while deleting class.');
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`/api/classes/${classId}/attendees`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error('Failed to fetch attendees.');
+            const attendees = await res.json();
+
+            if (attendees.length === 0) {
+                attendeesListContainer.innerHTML = '<p style="text-align: center; color: #94a3b8; padding: 20px;">No students enrolled in this class yet.</p>';
+                return;
             }
+
+            attendeesListContainer.innerHTML = `
+                <h4 style="margin-top: 0; color: #10b981; font-size: 1.15rem; margin-bottom: 20px; text-align: center; font-weight: 700;">${classTitle}</h4>
+                <div class="attendees-list-wrapper">
+                    ${attendees.map(att => {
+                        const avatar = att.profile_image 
+                            ? `<img src="${att.profile_image}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" alt="Avatar">`
+                            : `<div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(16,185,129,0.2); color: #10b981; display: flex; align-items: center; justify-content: center; font-weight: bold;"><i class="fa-solid fa-user"></i></div>`;
+                        
+                        const phoneStr = att.phone || 'No phone provided';
+
+                        return `
+                            <div class="attendee-row-card">
+                                <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
+                                    ${avatar}
+                                    <div style="display: flex; flex-direction: column; gap: 3px; width: 100%;">
+                                        <strong style="color: #ffffff; font-size: 0.95rem;">${att.name}</strong>
+                                        <small style="color: #94a3b8; word-break: break-all;">${att.email}</small>
+                                        <a href="#" class="attendee-phone-link" onclick="handlePhoneClick('${phoneStr.replace(/'/g, "\\'")}'); return false;" style="font-size: 0.85rem; font-weight: 600;">
+                                            <i class="fa-solid fa-phone"></i> ${phoneStr}
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        } catch (err) {
+            console.error('Error fetching attendees:', err);
+            attendeesListContainer.innerHTML = '<p style="text-align: center; color: #f87171; padding: 20px;">Failed to load attendees list.</p>';
+        }
+    };
+
+    window.handlePhoneClick = async (phone) => {
+        if (!phone || phone === 'No phone provided') return;
+        const cleanPhone = phone.trim();
+        
+        let callAction = false;
+        if (typeof window.showConfirmModal === 'function') {
+            // Uses global confirmation modal: Confirm = Call, Cancel = Copy
+            callAction = await window.showConfirmModal(
+                `Would you like to call or copy the phone number: ${cleanPhone}?`,
+                'Contact Student',
+                'Call',
+                'Copy'
+            );
+        } else {
+            callAction = confirm(`Phone Number: ${cleanPhone}\n\nClick OK to Call, or Cancel to Copy.`);
+        }
+
+        if (callAction) {
+            window.location.href = `tel:${cleanPhone}`;
+        } else {
+            navigator.clipboard.writeText(cleanPhone).then(() => {
+                if (typeof window.showSuccessModal === 'function') {
+                    window.showSuccessModal(`Copied "${cleanPhone}" to clipboard!`, 'Copied');
+                } else {
+                    alert(`Copied "${cleanPhone}" to clipboard!`);
+                }
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+                alert('Failed to copy phone number.');
+            });
         }
     };
 
