@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Failed - Rhythm & Soul</title>
+    <!-- Uses your global header stylesheet -->
+    <link rel="stylesheet" href="../Shared/header.css">
+    <link rel="stylesheet" href="PaymentFailedPage.css">
+</head>
+<body>
+    <!-- Dynamically populated by header.js -->
+    <div id="header-placeholder"></div>
+
+    <main class="failed-container fade-in">
+        <div class="failed-card">
+            <div class="icon-box">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h1>Payment Failed or Expired</h1>
+            <p>We couldn't process your payment transaction or your PayMongo session expired. No charges were made to your account. Please select your class again to retry.</p>
+            
+            <div class="failed-actions">
+                <button id="btnTryAgain" class="btn-primary">
+                    <i class="fa-solid fa-rotate-right"></i> Try Again (Class Schedule)
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Global header logic -->
+    <script src="../Shared/header.js"></script>
+    <script src="PaymentFailedPage.js"></script>
+</body>
+</html>

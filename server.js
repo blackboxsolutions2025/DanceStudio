@@ -530,10 +530,29 @@ app.put('/api/coach/class-image', authenticateToken, uploadCardProfile.single('c
 // --- Get All Classes with Filters ---
 app.get('/api/classes', async (req, res) => {
     try {
+        let userId = 0;
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
+        if (token) {
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                userId = decoded.id;
+            } catch (err) {
+                // Invalid or expired token, treat as guest
+            }
+        }
+
         const { date, genre, coach, venue } = req.query;
         let query = `
             SELECT c.*, g.name AS genre_name, ch.name AS coach_name, v.name AS venue_name, 
-                   u.profile_image AS coach_image, ch.classimage AS coach_class_image, ch.image_position AS coach_image_position 
+                   u.profile_image AS coach_image, ch.classimage AS coach_class_image, ch.image_position AS coach_image_position,
+                   (SELECT COUNT(*) 
+                    FROM enrollments e 
+                    JOIN payments p ON p.enrollment_id = e.id 
+                    WHERE e.class_id = c.id 
+                      AND e.user_id = ? 
+                      AND e.status = 'confirmed' 
+                      AND p.status = 'paid') AS is_booked
             FROM classes c 
             JOIN genre g ON c.genreid = g.id 
             JOIN coach ch ON c.coachid = ch.id 
@@ -541,16 +560,16 @@ app.get('/api/classes', async (req, res) => {
             LEFT JOIN users u ON ch.user_id = u.id 
             WHERE c.schedule_date >= CURDATE()
         `;
-        let params = [];
-        // ... filters ...
+        let params = [userId];
+
         query += ' ORDER BY c.schedule_date ASC, c.start_time ASC';
         const [classes] = await pool.execute(query, params);
 
-        // --- THIS MAPPING IS CRITICAL ---
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         const formattedClasses = classes.map(cls => ({
             ...cls,
-            coach_class_image: cls.coach_class_image ? `${baseUrl}/cardprofile/${cls.coach_class_image}` : null
+            coach_class_image: cls.coach_class_image ? `${baseUrl}/cardprofile/${cls.coach_class_image}` : null,
+            is_booked: cls.is_booked > 0
         }));
 
         res.json(formattedClasses);
@@ -762,9 +781,183 @@ app.post('/api/classes', authenticateToken, async (req, res) => {
     }
 });
 
+// --- Get Single Class Details Endpoint ---
+app.get('/api/classes/:id', async (req, res) => {
+    try {
+        const classId = req.params.id;
+        const query = `
+            SELECT c.*, g.name AS genre_name, ch.name AS coach_name, v.name AS venue_name 
+            FROM classes c 
+            JOIN genre g ON c.genreid = g.id 
+            JOIN coach ch ON c.coachid = ch.id 
+            JOIN venue v ON c.venueid = v.id 
+            WHERE c.id = ?
+        `;
+        const [classes] = await pool.execute(query, [classId]);
+        
+        if (classes.length === 0) return res.status(404).json({ message: 'Class not found.' });
+        res.json(classes[0]);
+    } catch (err) {
+        console.error('Fetch Single Class Error:', err);
+        res.status(500).json({ message: 'Server error fetching class details.' });
+    }
+});
 
+// --- Checkout Initialization Endpoint ---
+app.post('/api/checkout', authenticateToken, async (req, res) => {
+    try {
+        const { class_id } = req.body;
+        const userId = req.user.id;
 
+        // 1. Fetch class details and price
+        const [classes] = await pool.execute('SELECT title, price, slots_remaining FROM classes WHERE id = ?', [class_id]);
+        if (classes.length === 0) return res.status(404).json({ message: 'Class not found.' });
+        if (classes[0].slots_remaining <= 0) return res.status(400).json({ message: 'Class is fully booked.' });
+        
+        const classInfo = classes[0];
+        const amountInCentavos = Math.round(classInfo.price * 100);
 
+        // Tighter truncation limit (max 25 characters) to fit PayMongo's container layout
+        const displayTitle = classInfo.title.length > 25 
+            ? classInfo.title.substring(0, 22) + '...' 
+            : classInfo.title;
+
+        // 2. Call PayMongo to generate Checkout Session
+        const paymongoRes = await fetch('https://api.paymongo.com/v1/checkout_sessions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${Buffer.from(process.env.PAYMONGO_SECRET_KEY).toString('base64')}`
+            },
+            body: JSON.stringify({
+                data: {
+                    attributes: {
+                        line_items: [{
+                            name: displayTitle,
+                            amount: amountInCentavos,
+                            currency: 'PHP',
+                            quantity: 1
+                        }],
+                        payment_method_types: ['gcash', 'paymaya', 'card'],
+                        success_url: 'http://localhost:3000/PaymentSuccessPage/PaymentSuccessPage.html',
+                        cancel_url: `http://localhost:3000/PaymentFailedPage/PaymentFailedPage.html?classId=${class_id}`,
+                        description: `Enrollment for ${displayTitle}`
+                    }
+                }
+            })
+        });
+
+        const paymongoData = await paymongoRes.json();
+        
+        if (!paymongoRes.ok || !paymongoData.data) {
+            console.error('PayMongo Error:', paymongoData);
+            return res.status(500).json({ message: paymongoData.errors?.[0]?.detail || 'Failed to generate PayMongo checkout session.' });
+        }
+
+        const checkoutId = paymongoData.data.id;
+        const checkoutUrl = paymongoData.data.attributes.checkout_url;
+
+        // 3. Save pending enrollment and payment to database
+        const [enrollment] = await pool.execute(
+            'INSERT INTO enrollments (user_id, class_id, status) VALUES (?, ?, ?)', 
+            [userId, class_id, 'pending']
+        );
+        
+        await pool.execute(
+            'INSERT INTO payments (enrollment_id, amount, paymongo_checkout_id, status) VALUES (?, ?, ?, ?)',
+            [enrollment.insertId, classInfo.price, checkoutId, 'pending']
+        );
+
+        res.json({ checkoutUrl });
+    } catch (err) {
+        console.error('Checkout Error:', err);
+        res.status(500).json({ message: 'Failed to initiate checkout.' });
+    }
+});
+
+// --- PayMongo Webhook Listener ---
+app.post('/api/webhooks/paymongo', async (req, res) => {
+    try {
+        const event = req.body.data;
+        
+        // Corrected check: event.attributes.type holds the actual event name
+        if (event && event.attributes) {
+            const eventType = event.attributes.type;
+            const checkoutId = event.attributes.data?.id;
+
+            if (eventType === 'checkout_session.payment.paid') {
+                await pool.execute('UPDATE payments SET status = ? WHERE paymongo_checkout_id = ?', ['paid', checkoutId]);
+                const [payments] = await pool.execute('SELECT enrollment_id FROM payments WHERE paymongo_checkout_id = ?', [checkoutId]);
+                if (payments.length > 0) {
+                    await pool.execute('UPDATE enrollments SET status = ? WHERE id = ?', ['confirmed', payments[0].enrollment_id]);
+                    const [enrollments] = await pool.execute('SELECT class_id FROM enrollments WHERE id = ?', [payments[0].enrollment_id]);
+                    if (enrollments.length > 0) {
+                        await pool.execute('UPDATE classes SET slots_remaining = slots_remaining - 1 WHERE id = ?', [enrollments[0].class_id]);
+                    }
+                }
+            } else if (eventType === 'checkout_session.payment.failed' || eventType === 'checkout_session.payment.expired') {
+                await pool.execute('UPDATE payments SET status = ? WHERE paymongo_checkout_id = ?', ['failed', checkoutId]);
+                const [payments] = await pool.execute('SELECT enrollment_id FROM payments WHERE paymongo_checkout_id = ?', [checkoutId]);
+                if (payments.length > 0) {
+                    await pool.execute('UPDATE enrollments SET status = ? WHERE id = ?', ['cancelled', payments[0].enrollment_id]);
+                }
+            }
+        }
+        res.status(200).send('Webhook received');
+    } catch (err) {
+        console.error('Webhook Error:', err);
+        res.status(500).send('Webhook processing failed');
+    }
+});
+
+app.post('/api/checkout/fail', authenticateToken, async (req, res) => {
+    try {
+        const { class_id } = req.body;
+        const userId = req.user.id;
+
+        if (class_id) {
+            const [enrollments] = await pool.execute(
+                'SELECT id FROM enrollments WHERE user_id = ? AND class_id = ? AND status = ? ORDER BY id DESC LIMIT 1',
+                [userId, class_id, 'pending']
+            );
+
+            if (enrollments.length > 0) {
+                const enrollmentId = enrollments[0].id;
+                await pool.execute('UPDATE enrollments SET status = ? WHERE id = ?', ['cancelled', enrollmentId]);
+                await pool.execute('UPDATE payments SET status = ? WHERE enrollment_id = ?', ['failed', enrollmentId]);
+            }
+        }
+        res.json({ message: 'Checkout marked as failed/cancelled.' });
+    } catch (err) {
+        console.error('Checkout Fail Error:', err);
+        res.status(500).json({ message: 'Server error updating failed checkout.' });
+    }
+});
+
+// --- Check User Class Enrollment Status ---
+app.get('/api/enrollments/check', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { class_id } = req.query;
+
+        if (!class_id) {
+            return res.status(400).json({ message: 'Class ID is required.' });
+        }
+
+        const [rows] = await pool.execute(
+            `SELECT e.id 
+             FROM enrollments e 
+             JOIN payments p ON p.enrollment_id = e.id 
+             WHERE e.user_id = ? AND e.class_id = ? AND e.status = 'confirmed' AND p.status = 'paid'`,
+            [userId, class_id]
+        );
+
+        res.json({ isBooked: rows.length > 0 });
+    } catch (err) {
+        console.error('Check Enrollment Error:', err);
+        res.status(500).json({ message: 'Server error while checking enrollment status.' });
+    }
+});
 
 
 

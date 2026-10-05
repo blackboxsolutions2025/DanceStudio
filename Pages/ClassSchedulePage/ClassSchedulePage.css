@@ -332,7 +332,7 @@ body {
     width: 100%;
     max-width: 1000px;
     height: 620px;
-    overflow-x: hidden;
+    overflow-x: visible; /* Changed from hidden to visible so side cards aren't clipped */
     overflow-y: visible;
     perspective: 1400px;
     touch-action: pan-y;
@@ -462,7 +462,7 @@ body {
 }
 
 .card-content-area {
-    padding: 0rem 1.75rem 1.75rem 1.75rem;
+    padding: 0rem 1.25rem 1.25rem 1.25rem; /* Restores left/right padding for inner elements */
     margin-top: -1.25rem;
     display: flex;
     flex-direction: column;
@@ -590,6 +590,50 @@ body {
     color: var(--text-muted);
 }
 
+/* --- Booked / Red Theme Styles --- */
+.class-card-custom.card-booked {
+    border-color: #ef4444 !important;
+    box-shadow: 0 20px 45px rgba(239, 68, 68, 0.25) !important;
+}
+
+.class-card-custom.card-booked .card-genre-badge {
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+.class-card-custom.card-booked .card-date-badge {
+    border-color: #ef4444;
+}
+
+.class-card-custom.card-booked .card-date-badge .date-month {
+    color: #ef4444;
+}
+
+.class-card-custom.card-booked .card-time-pill {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.class-card-custom.card-booked .card-venue {
+    color: #ef4444;
+}
+
+.btn-booked-state {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: #ffffff;
+    width: 100%;
+    padding: 0.95rem 1rem;
+    border-radius: 10px;
+    font-weight: 800;
+    font-size: 1rem;
+    border: none;
+    cursor: not-allowed;
+    text-align: center;
+    opacity: 0.9;
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+}
+
 @media (max-width: 768px) {
     .schedule-container {
         padding: 0 1rem;
@@ -678,7 +722,7 @@ body {
     }
 
     .card-content-area {
-        padding: 0rem 1rem 1rem 1rem;
+        padding: 0rem 1rem 1rem 1rem; /* Restores side padding for mobile view */
         margin-top: -2rem;
         gap: 0.2rem;
     }

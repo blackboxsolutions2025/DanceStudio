@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout - Rhythm & Soul</title>
+    <!-- Uses your global header stylesheet -->
+    <link rel="stylesheet" href="../Shared/header.css">
+    <link rel="stylesheet" href="ClassCheckoutPage.css">
+</head>
+<body>
+    <!-- Dynamically populated by header.js -->
+    <div id="header-placeholder"></div>
+
+    <main class="checkout-container fade-in">
+        <h1 class="checkout-title">Complete Your Enrollment</h1>
+        
+        <div class="checkout-grid">
+            <section class="summary-card">
+                <h2><i class="fa-solid fa-ticket"></i> Class Summary</h2>
+                <div id="classSummaryLoading" class="loading-text">Fetching class details...</div>
+                <div id="classSummaryContent" class="hidden">
+                    <h3 id="cTitle">Class Title</h3>
+                    <ul class="class-details-list">
+                        <li><i class="fa-solid fa-user-tie"></i> <span id="cCoach"></span></li>
+                        <li><i class="fa-solid fa-calendar-day"></i> <span id="cDate"></span></li>
+                        <li><i class="fa-solid fa-clock"></i> <span id="cTime"></span></li>
+                        <li><i class="fa-solid fa-location-dot"></i> <span id="cVenue"></span></li>
+                    </ul>
+                    <div class="price-row">
+                        <span>Total Due</span>
+                        <strong id="cPrice">₱0.00</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section class="student-card">
+                <!-- Top content wrapper -->
+                <div class="student-card-content">
+                    <h2><i class="fa-solid fa-user"></i> Student Information</h2>
+                    <div id="studentInfoContent" class="student-info-box">
+                        <p><strong>Name:</strong> <span id="sName">Loading...</span></p>
+                        <p><strong>Email:</strong> <span id="sEmail">Loading...</span></p>
+                        <p><strong>Phone:</strong> <span id="sPhone">Loading...</span></p>
+                    </div>
+                </div>
+                
+                <!-- Action buttons pinned to the bottom -->
+                <div class="checkout-buttons">
+                    <button id="btnCancelCheckout" class="btn-checkout btn-cancel">Cancel</button>
+                    <button id="btnProceedPayment" class="btn-checkout btn-primary">
+                        <span class="btn-text">Proceed to Payment</span>
+                    </button>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Add this modal at the bottom of main/body -->
+    <div id="confirmationModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2>Confirm Enrollment Payment</h2>
+            <p>Please note that all class payments are <strong>non-refundable</strong> once processed. Would you like to continue to PayMongo?</p>
+            <div class="modal-actions">
+                <button id="btnCancelModal" class="btn-secondary">Cancel</button>
+                <button id="btnConfirmModal" class="btn-primary">Proceed to Payment</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global header logic -->
+    <script src="../Shared/header.js"></script>
+    <script src="ClassCheckoutPage.js"></script>
+</body>
+</html>

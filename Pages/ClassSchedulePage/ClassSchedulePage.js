@@ -88,7 +88,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchClasses() {
         try {
-            const response = await fetch('/api/classes');
+            const token = localStorage.getItem('token');
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            const response = await fetch('/api/classes', { headers });
+            
             if (response.ok) {
                 allClasses = await response.json();
             } else {
@@ -146,10 +149,11 @@ document.addEventListener('DOMContentLoaded', () => {
         classesToRender.forEach((cls, idx) => {
             const { month, day } = getCardDateParts(cls.schedule_date);
             const classImage = cls.coach_class_image || 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600';
-            const imagePosition = cls.coach_image_position || '50% 50%'; // <-- Added image position support
+            const imagePosition = cls.coach_image_position || '50% 50%';
+            const isBooked = cls.is_booked; // Evaluated from API
 
             const card = document.createElement('div');
-            card.className = 'class-card-custom';
+            card.className = `class-card-custom ${isBooked ? 'card-booked' : ''}`;
             card.dataset.index = idx;
 
             card.innerHTML = `
@@ -179,18 +183,30 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="card-price">₱${parseFloat(cls.price).toLocaleString()}</span>
                     </div>
 
-                    <button class="btn btn-register register-btn" data-id="${cls.id}">
-                        REGISTER NOW
+                    <button class="btn ${isBooked ? 'btn-booked-state' : 'btn-register register-btn'}" data-id="${cls.id}" ${isBooked ? 'disabled' : ''}>
+                        ${isBooked ? 'BOOKED' : 'REGISTER NOW'}
                     </button>
                 </div>
             `;
 
-            // Navigation via clicks
+            // Handle Register Button Navigation only if not booked
+            if (!isBooked) {
+                const registerBtn = card.querySelector('.register-btn');
+                if (registerBtn) {
+                    registerBtn.addEventListener('click', (e) => {
+                        e.stopPropagation(); // Prevent carousel card selection trigger
+                        window.location.href = `../ClassCheckoutPage/ClassCheckoutPage.html?classId=${cls.id}`;
+                    });
+                }
+            }
+
+            // Navigation via card clicks
             card.addEventListener('click', (e) => {
                 if (e.target.closest('.register-btn')) return;
                 const clickedIdx = parseInt(card.dataset.index, 10);
                 if (clickedIdx !== currentIndex) {
                     currentIndex = clickedIdx;
+                    updateCardPositions(currentIndex, true); // Animates and shifts the clicked sub-card to the main position
                 }
             });
 

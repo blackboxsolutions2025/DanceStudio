@@ -1,0 +1,188 @@
+:root {
+    --bg-dark: #0f172a;
+    --bg-card: #1e293b;
+    --green-primary: #10b981;
+    --green-hover: #059669;
+    --green-light: rgba(16, 185, 129, 0.15);
+    --green-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    --text-main: #e2e8f0;
+    --text-muted: #94a3b8;
+    --border-color: rgba(16, 185, 129, 0.25);
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+}
+
+.success-main {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px 20px;
+    min-height: calc(100vh - 65px);
+    box-sizing: border-box;
+}
+
+.success-container {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 45px 35px;
+    max-width: 520px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(16, 185, 129, 0.1);
+}
+
+.success-icon-wrapper {
+    width: 90px;
+    height: 90px;
+    background: var(--green-light);
+    border: 2px solid var(--green-primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 25px auto;
+    box-shadow: 0 0 25px rgba(16, 185, 129, 0.3);
+}
+
+.success-icon-wrapper i {
+    font-size: 3rem;
+    color: var(--green-primary);
+}
+
+.success-container h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    margin: 0 0 10px 0;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.success-subtitle {
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    line-height: 1.5;
+    margin-bottom: 30px;
+}
+
+.success-details-card {
+    background-color: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 30px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.95rem;
+}
+
+.detail-label {
+    color: var(--text-muted);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.detail-label i {
+    color: var(--green-primary);
+}
+
+.detail-value {
+    color: var(--text-main);
+    font-weight: 700;
+}
+
+.status-paid {
+    color: var(--green-primary);
+    background: var(--green-light);
+    padding: 4px 10px;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.success-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.btn-primary {
+    background: var(--green-gradient);
+    color: #0f172a;
+    border: none;
+    padding: 14px 20px;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 800;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+}
+
+.btn-primary:hover {
+    background: var(--green-hover);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
+}
+
+.btn-secondary {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+    border-color: var(--green-primary);
+    color: var(--green-primary);
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.fade-in {
+    animation: fadeInUp 0.5s ease forwards;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 480px) {
+    .success-container {
+        padding: 30px 20px;
+    }
+    .success-container h1 {
+        font-size: 1.8rem;
+    }
+}
