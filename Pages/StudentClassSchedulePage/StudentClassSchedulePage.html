@@ -145,6 +145,17 @@
         </div>
     </div>
 
+    <!-- Loading Modal Overlay -->
+    <div id="loadingModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 320px; text-align: center; padding: 2rem;">
+            <div class="spinner-container" style="display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: var(--green-primary);"></i>
+                <h3 style="margin: 0; font-size: 1.2rem; color: var(--text-main);">Processing Attendance...</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">Please wait while we record your attendance and dispatch your update.</p>
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <script src="../Shared/success-modal.js"></script>
     <script src="../Shared/error-modal.js"></script>

@@ -68,6 +68,10 @@ app.get('/student-schedule', (req, res) => {
     res.sendFile(path.join(__dirname, 'Pages', 'StudentClassSchedulePage', 'StudentClassSchedulePage.html'));
 });
 
+app.get('/coach-schedule', (req, res) => {
+    res.sendFile(path.join(__dirname, 'Pages', 'CoachSchedulePage', 'CoachSchedulePage.html'));
+});
+
 // --- Database Connection Pool ---
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
@@ -1025,17 +1029,24 @@ app.get('/api/user/schedule', authenticateToken, async (req, res) => {
         const userId = req.user.id;
         const query = `
             SELECT e.id AS enrollment_id, e.status AS enrollment_status,
-                   c.id AS class_id, c.title, c.schedule_date, c.start_time, c.end_time, c.price, c.description,
+                   c.id AS class_id, c.title, DATE_FORMAT(c.schedule_date, '%Y-%m-%d') AS schedule_date, c.start_time, c.end_time, c.price, c.description,
                    g.name AS genre_name,
                    ch.id AS coach_id, ch.name AS coach_name, ch.classimage AS coach_class_image, ch.image_position AS coach_image_position,
                    u.profile_image AS coach_user_image,
-                   v.id AS venue_id, v.name AS venue_name
+                   v.id AS venue_id, v.name AS venue_name,
+                   a.time_in, a.time_out,
+                   CASE 
+                       WHEN a.time_out IS NOT NULL THEN 'completed'
+                       WHEN a.time_in IS NOT NULL THEN 'timed_in'
+                       ELSE 'none'
+                   END AS attendance_status
             FROM enrollments e
             JOIN classes c ON e.class_id = c.id
             JOIN genre g ON c.genreid = g.id
             JOIN coach ch ON c.coachid = ch.id
             LEFT JOIN users u ON ch.user_id = u.id
             JOIN venue v ON c.venueid = v.id
+            LEFT JOIN attendance a ON a.user_id = e.user_id AND a.class_id = c.id
             WHERE e.user_id = ? AND e.status = 'confirmed'
             ORDER BY c.schedule_date ASC, c.start_time ASC
         `;
@@ -1104,13 +1115,13 @@ app.post('/api/attendance/scan', authenticateToken, async (req, res) => {
         const userId = req.user.id;
         const { class_id, qr_code } = req.body;
 
-        // Optional: Validate qr_code content if your instructor generates specific tokens (e.g., matching class_id or secret key)
-        
         // Check if attendance row already exists for this student and class
         const [existing] = await pool.execute(
             'SELECT id, time_in, time_out FROM attendance WHERE user_id = ? AND class_id = ?',
             [userId, class_id]
         );
+
+        let actionType = ''; // 'time_in' or 'time_out'
 
         if (existing.length === 0) {
             // First scan: Record Time-In
@@ -1118,7 +1129,7 @@ app.post('/api/attendance/scan', authenticateToken, async (req, res) => {
                 'INSERT INTO attendance (user_id, class_id, time_in) VALUES (?, ?, NOW())',
                 [userId, class_id]
             );
-            return res.json({ message: 'Time-in successfully recorded!' });
+            actionType = 'time_in';
         } else {
             const record = existing[0];
             if (!record.time_in) {
@@ -1126,16 +1137,99 @@ app.post('/api/attendance/scan', authenticateToken, async (req, res) => {
                     'UPDATE attendance SET time_in = NOW() WHERE id = ?',
                     [record.id]
                 );
-                return res.json({ message: 'Time-in successfully recorded!' });
+                actionType = 'time_in';
             } else if (!record.time_out) {
                 await pool.execute(
                     'UPDATE attendance SET time_out = NOW() WHERE id = ?',
                     [record.id]
                 );
-                return res.json({ message: 'Time-out successfully recorded! Attendance complete.' });
+                actionType = 'time_out';
             } else {
                 return res.status(400).json({ message: 'Attendance for this class has already been completed.' });
             }
+        }
+
+        // --- Fetch User, Class, and Attendance Details for Email Notification ---
+        const [users] = await pool.execute('SELECT name, email FROM users WHERE id = ?', [userId]);
+        const [classes] = await pool.execute(
+            `SELECT c.title, c.schedule_date, c.start_time, c.end_time, v.name AS venue_name, ch.name AS coach_name 
+             FROM classes c 
+             JOIN venue v ON c.venueid = v.id 
+             JOIN coach ch ON c.coachid = ch.id 
+             WHERE c.id = ?`,
+            [class_id]
+        );
+        const [attendanceRecords] = await pool.execute(
+            'SELECT time_in, time_out FROM attendance WHERE user_id = ? AND class_id = ?',
+            [userId, class_id]
+        );
+
+        if (users.length > 0 && classes.length > 0 && attendanceRecords.length > 0) {
+            const student = users[0];
+            const classInfo = classes[0];
+            const att = attendanceRecords[0];
+
+            // Format date (e.g., "Monday - Oct 12, 2026")
+            const dateObj = new Date(classInfo.schedule_date);
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const formattedDate = `${days[dateObj.getUTCDay()]} - ${months[dateObj.getUTCMonth()]} ${dateObj.getUTCDate()}, ${dateObj.getUTCFullYear()}`;
+
+            // Format class start/end time
+            const formatTimeStr = (timeStr) => {
+                if (!timeStr) return '';
+                const [hours, minutes] = timeStr.split(':');
+                let h = parseInt(hours, 10);
+                const ampm = h >= 12 ? 'PM' : 'AM';
+                h = h % 12 || 12;
+                return `${h}:${minutes} ${ampm}`;
+            };
+
+            const formattedStartTime = formatTimeStr(classInfo.start_time);
+            const formattedEndTime = formatTimeStr(classInfo.end_time);
+
+            // Format timestamp helper for time-in / time-out
+            const formatTimestamp = (ts) => {
+                if (!ts) return 'Not recorded';
+                const d = new Date(ts);
+                return d.toLocaleString('en-US', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' });
+            };
+
+            const timeInDisplay = formatTimestamp(att.time_in);
+            const timeOutDisplay = formatTimestamp(att.time_out);
+
+            const statusTitle = actionType === 'time_in' ? 'Time-In Successfully Recorded' : 'Attendance Completed (Time-Out Recorded)';
+            const schedulePageUrl = 'http://localhost:3000/StudentClassSchedulePage/StudentClassSchedulePage.html';
+
+            // Send Email via Nodemailer
+            await transporter.sendMail({
+                from: '"Rhythm & Soul Dance Studio" <no-reply@rhythmsoul.com>',
+                to: student.email,
+                subject: `Attendance Update: ${classInfo.title} - Rhythm & Soul`,
+                html: `
+                    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f1015; color: #ffffff; padding: 30px; border-radius: 12px; max-width: 500px; margin: auto;">
+                        <h2 style="color: #10b981; margin-bottom: 10px;">${statusTitle}, ${student.name}!</h2>
+                        <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;">Your attendance record for <strong>${classInfo.title}</strong> has been successfully updated.</p>
+                        <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Class Date:</strong> ${formattedDate}</p>
+                        <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Scheduled Time:</strong> ${formattedStartTime} - ${formattedEndTime}</p>
+                        <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Coach:</strong> ${classInfo.coach_name}</p>
+                        <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Venue:</strong> ${classInfo.venue_name}</p>
+                        <hr style="border: 0; border-top: 1px solid #2b2f3a; margin: 20px 0;">
+                        <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Time-In:</strong> ${timeInDisplay}</p>
+                        <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Time-Out:</strong> ${timeOutDisplay}</p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="${schedulePageUrl}" style="display: inline-block; background-color: #10b981; color: #0f1015; padding: 12px 25px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 1rem;">View My Schedule</a>
+                        </div>
+                        <p style="color: #a0a5b1; font-size: 0.85rem; border-top: 1px solid #2b2f3a; padding-top: 15px;">Thank you for dancing with Rhythm & Soul Dance Studio!</p>
+                    </div>
+                `
+            });
+        }
+
+        if (actionType === 'time_in') {
+            return res.json({ message: 'Time-in successfully recorded!' });
+        } else {
+            return res.json({ message: 'Time-out successfully recorded! Attendance complete.' });
         }
     } catch (err) {
         console.error('Attendance Scan Error:', err);
@@ -1146,13 +1240,20 @@ app.post('/api/attendance/scan', authenticateToken, async (req, res) => {
 // --- Get Confirmed Attendees for a Specific Class ---
 app.get('/api/classes/:id/attendees', authenticateToken, async (req, res) => {
     try {
+        if (req.user.role !== 'coach' && req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Access denied. Coach or Admin privileges required.' });
+        }
         const classId = req.params.id;
         const query = `
             SELECT u.id AS user_id, u.name, u.email, u.phone, u.profile_image,
-                   e.status AS enrollment_status, p.status AS payment_status, e.created_at AS enrolled_at
+                   e.status AS enrollment_status, p.status AS payment_status, e.created_at AS enrolled_at,
+                   a.time_in, a.time_out, a.is_overridden, a.override_reason, a.overridden_at,
+                   ua.name AS overridden_by_name
             FROM enrollments e
             JOIN users u ON e.user_id = u.id
             LEFT JOIN payments p ON p.enrollment_id = e.id
+            LEFT JOIN attendance a ON a.user_id = u.id AND a.class_id = e.class_id
+            LEFT JOIN users ua ON a.overridden_by = ua.id
             WHERE e.class_id = ? AND e.status = 'confirmed' AND p.status = 'paid'
             ORDER BY u.name ASC
         `;
@@ -1170,6 +1271,188 @@ app.get('/api/classes/:id/attendees', authenticateToken, async (req, res) => {
         res.status(500).json({ message: 'Server error while fetching class attendees.' });
     }
 });
+
+// --- Get Authenticated Coach Class Schedule ---
+app.get('/api/coach/schedule', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'coach') {
+            return res.status(403).json({ message: 'Access denied. Coach privileges required.' });
+        }
+
+        const [coaches] = await pool.execute('SELECT id FROM coach WHERE user_id = ?', [req.user.id]);
+        if (coaches.length === 0) {
+            return res.json([]);
+        }
+        const coachId = coaches[0].id;
+
+        const query = `
+            SELECT c.id, c.title, DATE_FORMAT(c.schedule_date, '%Y-%m-%d') AS schedule_date, c.start_time, c.end_time, c.price, c.description, c.capacity, c.slots_remaining,
+                   g.name AS genre_name, c.genreid,
+                   v.id AS venue_id, v.name AS venue_name,
+                   ch.id AS coach_id, ch.name AS coach_name, ch.classimage AS coach_class_image, ch.image_position AS coach_image_position,
+                   u.profile_image AS coach_user_image
+            FROM classes c
+            JOIN genre g ON c.genreid = g.id
+            JOIN coach ch ON c.coachid = ch.id
+            LEFT JOIN users u ON ch.user_id = u.id
+            JOIN venue v ON c.venueid = v.id
+            WHERE c.coachid = ?
+            ORDER BY c.schedule_date ASC, c.start_time ASC
+        `;
+        const [classes] = await pool.execute(query, [coachId]);
+
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const formattedClasses = classes.map(item => ({
+            ...item,
+            coach_class_image: item.coach_class_image ? `${baseUrl}/cardprofile/${item.coach_class_image}` : null,
+            coach_user_image: item.coach_user_image ? `${baseUrl}/profile-picture/${item.coach_user_image}` : null
+        }));
+
+        res.json(formattedClasses);
+    } catch (err) {
+        console.error('Fetch Coach Schedule Error:', err);
+        res.status(500).json({ message: 'Server error while fetching coach schedule.' });
+    }
+});
+
+// --- Coach/Admin Attendance Override Endpoint ---
+app.post('/api/attendance/override', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'coach' && req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Access denied. Coach or Admin privileges required.' });
+        }
+
+        const { class_id, student_id, attendance_status, override_reason } = req.body;
+
+        if (!class_id || !student_id || !attendance_status || !override_reason) {
+            return res.status(400).json({ message: 'Missing required fields.' });
+        }
+
+        // Fetch class schedule details
+        const [classes] = await pool.execute(
+            `SELECT c.title, c.schedule_date, c.start_time, c.end_time, v.name AS venue_name, ch.name AS coach_name 
+             FROM classes c 
+             JOIN venue v ON c.venueid = v.id 
+             JOIN coach ch ON c.coachid = ch.id 
+             WHERE c.id = ?`,
+            [class_id]
+        );
+        if (classes.length === 0) {
+            return res.status(404).json({ message: 'Class not found.' });
+        }
+        const classInfo = classes[0];
+
+        // Validate time if user is a coach
+        if (req.user.role === 'coach') {
+            const classDateStr = classInfo.schedule_date.toISOString ? classInfo.schedule_date.toISOString().split('T')[0] : classInfo.schedule_date;
+            const [year, month, day] = classDateStr.split('-').map(Number);
+            const [endHour, endMin] = classInfo.end_time.split(':').map(Number);
+            const endDateTime = new Date(year, month - 1, day, endHour, endMin, 0);
+
+            const now = new Date();
+            const nowPHT = new Date(now.getTime() + (now.getTimezoneOffset() * 60000) + (3600000 * 8));
+
+            if (nowPHT < endDateTime) {
+                return res.status(400).json({ message: 'Attendance overrides are not allowed before the class end time.' });
+            }
+        }
+        
+        const classDateStr = classInfo.schedule_date.toISOString ? classInfo.schedule_date.toISOString().split('T')[0] : classInfo.schedule_date;
+
+        const exactTimeIn = `${classDateStr} ${classInfo.start_time}`;
+        const exactTimeOut = `${classDateStr} ${classInfo.end_time}`;
+
+        let targetTimeIn = null;
+        let targetTimeOut = null;
+
+        if (attendance_status === 'time_in') {
+            targetTimeIn = exactTimeIn;
+            targetTimeOut = null;
+        } else if (attendance_status === 'completed' || attendance_status === 'time_out') {
+            targetTimeIn = exactTimeIn;
+            targetTimeOut = exactTimeOut;
+        } else if (attendance_status === 'none') {
+            targetTimeIn = null;
+            targetTimeOut = null;
+        }
+
+        // Check if attendance record already exists
+        const [existing] = await pool.execute(
+            'SELECT id FROM attendance WHERE user_id = ? AND class_id = ?',
+            [student_id, class_id]
+        );
+
+        if (existing.length === 0) {
+            await pool.execute(
+                `INSERT INTO attendance (user_id, class_id, time_in, time_out, is_overridden, override_reason, overridden_by, overridden_at) 
+                 VALUES (?, ?, ?, ?, 1, ?, ?, NOW())`,
+                [student_id, class_id, targetTimeIn, targetTimeOut, override_reason, req.user.id]
+            );
+        } else {
+            await pool.execute(
+                `UPDATE attendance 
+                 SET time_in = ?, time_out = ?, is_overridden = 1, override_reason = ?, overridden_by = ?, overridden_at = NOW() 
+                 WHERE user_id = ? AND class_id = ?`,
+                [targetTimeIn, targetTimeOut, override_reason, req.user.id, student_id, class_id]
+            );
+        }
+
+        // --- Send Email Notification to Student ---
+        const [students] = await pool.execute('SELECT name, email FROM users WHERE id = ?', [student_id]);
+        if (students.length > 0) {
+            const student = students[0];
+
+            // Format date (e.g., "Monday - Oct 12, 2026")
+            const dateObj = new Date(classInfo.schedule_date);
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const formattedDate = `${days[dateObj.getUTCDay()]} - ${months[dateObj.getUTCMonth()]} ${dateObj.getUTCDate()}, ${dateObj.getUTCFullYear()}`;
+
+            // Format time (e.g., "10:00 AM")
+            const [hours, minutes] = classInfo.start_time.split(':');
+            let h = parseInt(hours, 10);
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12 || 12;
+            const formattedTime = `${h}:${minutes} ${ampm}`;
+
+            let statusDisplay = 'Not Arrived (Cleared)';
+            if (attendance_status === 'time_in') statusDisplay = 'Timed-In';
+            else if (attendance_status === 'completed' || attendance_status === 'time_out') statusDisplay = 'Completed / Timed-Out';
+
+            const schedulePageUrl = 'http://localhost:3000/StudentClassSchedulePage/StudentClassSchedulePage.html';
+
+            await transporter.sendMail({
+                from: '"Rhythm & Soul Dance Studio" <no-reply@rhythmsoul.com>',
+                to: student.email,
+                subject: `Attendance Override Update: ${classInfo.title} - Rhythm & Soul`,
+                html: `
+                    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f1015; color: #ffffff; padding: 30px; border-radius: 12px; max-width: 500px; margin: auto;">
+                        <h2 style="color: #10b981; margin-bottom: 10px;">Attendance Status Updated, ${student.name}!</h2>
+                        <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;">An instructor or administrator has updated your attendance record for <strong>${classInfo.title}</strong>.</p>
+                        <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>New Status:</strong> ${statusDisplay}</p>
+                        <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Date & Time:</strong> ${formattedDate} at ${formattedTime}</p>
+                        <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Coach:</strong> ${classInfo.coach_name}</p>
+                        <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Venue:</strong> ${classInfo.venue_name}</p>
+                        <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Override Reason:</strong> ${override_reason}</p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="${schedulePageUrl}" style="display: inline-block; background-color: #10b981; color: #0f1015; padding: 12px 25px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 1rem;">View My Schedule</a>
+                        </div>
+                        <p style="color: #a0a5b1; font-size: 0.85rem; border-top: 1px solid #2b2f3a; padding-top: 15px;">If you have any questions regarding this adjustment, please contact the studio.</p>
+                    </div>
+                `
+            });
+        }
+
+        res.json({ message: 'Attendance successfully overridden and notification email sent to student.' });
+    } catch (err) {
+        console.error('Attendance Override Error:', err);
+        res.status(500).json({ message: 'Server error while processing attendance override.' });
+    }
+});
+
+
+
+
 
 
 

@@ -133,6 +133,10 @@
                 <li><a href="../CoachListPage/CoachListPage.html" class="${currentPath.includes('CoachListPage') ? 'active' : ''}"><i class="fa-solid fa-chalkboard-user"></i> Instructor Management</a></li>
                 <li><a href="../ClassScheduleListPage/ClassScheduleListPage.html" class="${currentPath.includes('ClassScheduleListPage') ? 'active' : ''}"><i class="fa-solid fa-calendar-days"></i> Class Schedule Management</a></li>
             `;
+        } else if (userRole === 'coach') {
+            roleLinksHTML = `
+                <li><a href="../CoachSchedulePage/CoachSchedulePage.html" class="${currentPath.includes('CoachSchedulePage') ? 'active' : ''}"><i class="fa-solid fa-calendar-alt"></i> Coach Schedule</a></li>
+            `;
         }
 
         // Role name placed at the top of the selection without the word "Role:"

@@ -1,0 +1,241 @@
+/* CoachSchedulePage Specific Styles */
+.btn-attendance.timeout-btn {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+.btn-attendance.timeout-btn:hover {
+    background: rgba(239, 68, 68, 0.25);
+    color: #ffffff;
+}
+
+.btn-attendance.disabled-btn {
+    background: #2b2f3a;
+    border-color: #2b2f3a;
+    color: var(--text-muted);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.btn-attendance.disabled-btn:hover {
+    background: #2b2f3a;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Attendee & Override Modal Styles */
+.attendee-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 380px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+    text-align: left;
+    scrollbar-width: thin;
+    scrollbar-color: #2b2f3a #0f1015;
+}
+
+.attendee-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.attendee-list::-webkit-scrollbar-track {
+    background: #0f1015;
+    border-radius: 4px;
+}
+
+.attendee-list::-webkit-scrollbar-thumb {
+    background: #2b2f3a;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+.attendee-list::-webkit-scrollbar-thumb:hover {
+    background: #10b981;
+}
+
+.attendee-item {
+    background: #181c25;
+    border: 1px solid #2b2f3a;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.attendee-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.attendee-profile {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.attendee-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.attendee-name {
+    font-weight: 600;
+    color: #ffffff;
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+.attendee-status-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+.badge-none { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+.badge-timed-in { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+.badge-completed { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+.badge-overridden { background: rgba(245, 158, 11, 0.2); color: #fbbf24; margin-left: 4px; }
+
+.attendee-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.btn-edit-override {
+    background: #2b2f3a;
+    color: #ffffff;
+    border: none;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: background 0.2s;
+}
+
+.btn-edit-override:hover {
+    background: #10b981;
+    color: #0f1015;
+}
+
+.override-form-container {
+    background: #0f1015;
+    border: 1px solid #10b981;
+    border-radius: 8px;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.override-form-container select,
+.override-form-container input {
+    background: #181c25;
+    border: 1px solid #2b2f3a;
+    color: #ffffff;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+
+.override-form-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.card-coach {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.2s;
+}
+
+.card-coach:hover {
+    color: #10b981;
+}
+
+/* Clickable Phone Number Style */
+.attendee-phone-link {
+    font-size: 0.75rem;
+    color: #10b981;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: 3px;
+    transition: color 0.2s;
+}
+
+.attendee-phone-link:hover {
+    color: #34d399;
+    text-decoration: underline;
+}
+
+/* --- Mobile Responsiveness Fixes for Attendee & Override Modal --- */
+@media (max-width: 576px) {
+    .modal-content {
+        margin: 1rem;
+        max-width: calc(100% - 2rem) !important;
+        padding: 1rem !important;
+    }
+
+    .attendee-info-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .attendee-profile {
+        width: 100%;
+    }
+
+    .attendee-profile span {
+        word-break: break-all;
+        font-size: 0.75rem;
+    }
+
+    /* Center align status badges on mobile screens */
+    .attendee-info-row > div:last-child {
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        justify-content: center; 
+        align-items: center;
+    }
+
+    .attendee-status-badge {
+        margin-left: 0 !important;
+    }
+
+    .attendee-actions {
+        width: 100%;
+    }
+
+    .btn-edit-override {
+        width: 100%;
+        justify-content: center;
+        padding: 0.5rem;
+    }
+
+    .override-form-buttons {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .override-form-buttons button {
+        width: 100% !important;
+    }
+}

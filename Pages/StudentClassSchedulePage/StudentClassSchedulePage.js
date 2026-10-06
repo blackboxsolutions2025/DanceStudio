@@ -579,25 +579,69 @@ document.addEventListener('DOMContentLoaded', () => {
     let html5QrCode = null;
     let activeScanningClassId = null;
 
-    function updateAttendanceButtonStyle(btn, status) {
+    function getStudentAttendanceButtonState(item) {
+        // Get current time adjusted to Philippine Time (UTC+8)
+        const now = new Date();
+        const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+        const nowPHT = new Date(utcTime + (3600000 * 8));
+
+        // Parse class date and time parts explicitly
+        const [year, month, day] = item.schedule_date.split('T')[0].split('-').map(Number);
+        const [startHour, startMin] = item.start_time.split(':').map(Number);
+        const [endHour, endMin] = item.end_time.split(':').map(Number);
+
+        const startDateTime = new Date(year, month - 1, day, startHour, startMin, 0);
+        const endDateTime = new Date(year, month - 1, day, endHour, endMin, 0);
+        const timeInOpenTime = new Date(startDateTime.getTime() - 30 * 60000); // 30 mins before start
+
+        if (item.attendance_status === 'completed') {
+            return { type: 'completed', text: 'Attendance Completed', disabled: true, modeClass: 'completed-mode' };
+        }
+
+        // If student has already timed in, but class has not reached the end time yet: lock button
+        if (item.attendance_status === 'timed_in' && nowPHT < endDateTime) {
+            return { type: 'already_timed_in', text: 'Already Timed In', disabled: true, modeClass: 'disabled-btn' };
+        }
+
+        if (nowPHT < timeInOpenTime) {
+            return { type: 'locked', text: 'QR Opens 30m Prior', disabled: true, modeClass: 'disabled-btn' };
+        } else if (nowPHT >= timeInOpenTime && nowPHT <= endDateTime) {
+            if (item.attendance_status === 'timed_in') {
+                return { type: 'time_out', text: 'Time-Out Attendance', disabled: false, modeClass: 'time-out-mode' };
+            } else {
+                return { type: 'time_in', text: 'Time-In Attendance', disabled: false, modeClass: '' };
+            }
+        } else if (nowPHT > endDateTime) {
+            if (item.attendance_status === 'timed_in') {
+                return { type: 'time_out', text: 'Time-Out Attendance', disabled: false, modeClass: 'time-out-mode' };
+            } else {
+                return { type: 'ended', text: 'Class Ended', disabled: true, modeClass: 'disabled-btn' };
+            }
+        }
+
+        return { type: 'locked', text: 'Not Available', disabled: true, modeClass: 'disabled-btn' };
+    }
+
+    function updateAttendanceButtonStyle(btn, item) {
+        const state = getStudentAttendanceButtonState(item);
         const textSpan = btn.querySelector('.attendance-btn-text');
         const icon = btn.querySelector('i');
         
-        if (status === 'timed_in') {
-            btn.className = 'btn-attendance time-out-mode';
+        btn.className = `btn-attendance ${state.modeClass}`;
+        btn.disabled = state.disabled;
+        btn.dataset.attendanceStatus = item.attendance_status;
+        textSpan.textContent = state.text;
+
+        if (state.type === 'time_out') {
             icon.className = 'fas fa-sign-out-alt';
-            textSpan.textContent = 'Time-Out Attendance';
-            btn.dataset.attendanceStatus = 'timed_in';
-        } else if (status === 'completed') {
-            btn.className = 'btn-attendance completed-mode';
+        } else if (state.type === 'completed') {
             icon.className = 'fas fa-check-circle';
-            textSpan.textContent = 'Attendance Completed';
-            btn.dataset.attendanceStatus = 'completed';
+        } else if (state.type === 'already_timed_in') {
+            icon.className = 'fas fa-check';
+        } else if (state.type === 'locked' || state.type === 'ended') {
+            icon.className = 'fas fa-lock';
         } else {
-            btn.className = 'btn-attendance';
             icon.className = 'fas fa-qrcode';
-            textSpan.textContent = 'Time-In Attendance';
-            btn.dataset.attendanceStatus = 'none';
         }
     }
 
@@ -636,6 +680,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cancelQrScanBtn) cancelQrScanBtn.addEventListener('click', stopQrScanner);
 
     async function submitAttendance(classId, qrData) {
+        const loadingModal = document.getElementById('loadingModal');
+        if (loadingModal) loadingModal.style.display = 'flex';
+
         try {
             const res = await fetch('/api/attendance/scan', {
                 method: 'POST',
@@ -647,6 +694,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             const data = await res.json();
+            
+            // Hide loading modal before showing success modal
+            if (loadingModal) loadingModal.style.display = 'none';
+
             if (!res.ok) throw new Error(data.message || 'Failed to record attendance.');
 
             if (typeof showSuccessModal === 'function') {
@@ -657,7 +708,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             fetchUserSchedule();
         } catch (err) {
+            // Hide loading modal on error as well
+            if (loadingModal) loadingModal.style.display = 'none';
             console.error('Attendance Error:', err);
+            
             if (typeof showErrorModal === 'function') {
                 showErrorModal(err.message);
             } else {
@@ -746,7 +800,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Attendance Button Action
             const attendanceBtn = card.querySelector('.btn-attendance');
-            updateAttendanceButtonStyle(attendanceBtn, item.attendance_status);
+            updateAttendanceButtonStyle(attendanceBtn, item);
 
             attendanceBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
