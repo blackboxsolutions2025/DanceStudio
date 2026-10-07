@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Attendance Art Cards - Rhythm & Soul Dance Studio</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Shared & Page Styles -->
+    <link rel="stylesheet" href="../Shared/header.css">
+    <link rel="stylesheet" href="StudentAttendancePage.css">
+</head>
+<body>
+
+    <!-- Global Navigation Header -->
+    <div id="header-placeholder"></div>
+
+    <main class="attendance-main-container">
+        <!-- Page Title Header -->
+        <div class="page-header-section">
+            <div class="header-titles">
+                <h1><i class="fa-solid fa-id-card-clip"></i> Attendance & Logs</h1>
+                <p>Track your punctuality, check-in timestamps, and class attendance performance at a glance.</p>
+            </div>
+        </div>
+
+        <!-- ZONE 1: Summary Metrics Cards -->
+        <section class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-icon enrolled"><i class="fa-solid fa-bookmark"></i></div>
+                <div class="metric-info">
+                    <span class="metric-label">Enrolled Classes</span>
+                    <h2 id="metricTotalClasses">0</h2>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon present"><i class="fa-solid fa-circle-check"></i></div>
+                <div class="metric-info">
+                    <span class="metric-label">Classes Attended</span>
+                    <h2 id="metricAttendedClasses">0</h2>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon missed"><i class="fa-solid fa-circle-xmark"></i></div>
+                <div class="metric-info">
+                    <span class="metric-label">Classes Missed</span>
+                    <h2 id="metricMissedClasses">0</h2>
+                </div>
+            </div>
+        </section>
+
+        <!-- ZONE 2: Unified Toolbar Card (Filters Summary + Filter Button) -->
+        <section class="schedule-toolbar-card">
+            <div class="toolbar-filters-summary">
+                <div class="summary-item">
+                    <span class="summary-label"><i class="fas fa-calendar-alt"></i> Date</span>
+                    <span id="summaryDate" class="summary-val">Upcoming Classes</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label"><i class="fas fa-music"></i> Genre</span>
+                    <span id="summaryGenre" class="summary-val">All Genres</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label"><i class="fas fa-chalkboard-teacher"></i> Coach</span>
+                    <span id="summaryCoach" class="summary-val">All Coaches</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label"><i class="fas fa-map-marker-alt"></i> Venue</span>
+                    <span id="summaryVenue" class="summary-val">All Venues</span>
+                </div>
+            </div>
+
+            <button id="openFilterModal" class="filter-trigger-btn-green">
+                <i class="fas fa-filter"></i> Filter Attendance 
+                <span id="activeFiltersBadge" class="filter-badge" style="display: none;">Active</span>
+            </button>
+        </section>
+
+        <!-- ZONE 3: Color-Coded Art Cards Grid -->
+        <section class="attendance-history-section">
+            <div id="attendanceCardsContainer" class="art-cards-grid">
+                <!-- Dynamic Art Cards injected here -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state hidden">
+                <i class="fa-solid fa-calendar-xmark"></i>
+                <h3>No Attendance Records Found</h3>
+                <p>You have no attendance records matching this filter criteria yet.</p>
+                <a href="../ClassSchedulePage/ClassSchedulePage.html" class="browse-classes-btn">Browse Class Schedule</a>
+            </div>
+        </section>
+    </main>
+
+    <!-- Filter Modal Dialog -->
+    <div id="filterModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-filter"></i> Filter Attendance</h3>
+                <button id="closeFilterModal" class="modal-close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="filter-group">
+                    <label><i class="fas fa-calendar-alt"></i> Date Range</label>
+                    <select id="filterDateRangeMode" class="filter-input">
+                        <option value="upcoming">Upcoming Classes</option>
+                        <option value="past">Past Classes</option>
+                        <option value="all">All Classes</option>
+                        <option value="today">This Day (Today)</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                </div>
+
+                <div class="filter-group custom-date-group" id="customDateContainer" style="display: none;">
+                    <label><i class="fas fa-calendar-day"></i> From & To Date</label>
+                    <div class="custom-date-inputs">
+                        <input type="date" id="filterStartDate" class="filter-input">
+                        <input type="date" id="filterEndDate" class="filter-input">
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <label><i class="fas fa-music"></i> Genre</label>
+                    <select id="filterGenre" class="filter-input">
+                        <option value="">All Genres</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label><i class="fas fa-chalkboard-teacher"></i> Coach</label>
+                    <select id="filterCoach" class="filter-input">
+                        <option value="">All Coaches</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label><i class="fas fa-map-marker-alt"></i> Venue</label>
+                    <select id="filterVenue" class="filter-input">
+                        <option value="">All Venues</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="resetModalFilters" class="btn btn-secondary">Reset</button>
+                <button id="applyModalFilters" class="btn btn-primary">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shared Modals & Scripts -->
+    <script src="../Shared/error-modal.js"></script>
+    <script src="../Shared/header.js"></script>
+    <script src="StudentAttendancePage.js"></script>
+</body>
+</html>

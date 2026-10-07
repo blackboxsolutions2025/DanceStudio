@@ -126,6 +126,7 @@
         if (userRole === 'student') {
             roleLinksHTML = `
                 <li><a href="../StudentClassSchedulePage/StudentClassSchedulePage.html" class="${currentPath.endsWith('StudentClassSchedulePage/StudentClassSchedulePage.html') ? 'active' : ''}"><i class="fa-solid fa-calendar-check"></i> My Class Schedule</a></li>
+                <li><a href="../StudentAttendancePage/StudentAttendancePage.html" class="${currentPath.endsWith('StudentAttendancePage/StudentAttendancePage.html') ? 'active' : ''}"><i class="fa-solid fa-clipboard-user"></i> Attendance History</a></li>
             `;
         } else if (userRole === 'admin') {
             roleLinksHTML = `

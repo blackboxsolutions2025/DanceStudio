@@ -1034,7 +1034,8 @@ app.get('/api/user/schedule', authenticateToken, async (req, res) => {
                    ch.id AS coach_id, ch.name AS coach_name, ch.classimage AS coach_class_image, ch.image_position AS coach_image_position,
                    u.profile_image AS coach_user_image,
                    v.id AS venue_id, v.name AS venue_name,
-                   a.time_in, a.time_out,
+                   a.time_in, a.time_out, a.is_overridden, a.override_reason, a.overridden_at,
+                   ua.name AS overridden_by_name,
                    CASE 
                        WHEN a.time_out IS NOT NULL THEN 'completed'
                        WHEN a.time_in IS NOT NULL THEN 'timed_in'
@@ -1047,6 +1048,7 @@ app.get('/api/user/schedule', authenticateToken, async (req, res) => {
             LEFT JOIN users u ON ch.user_id = u.id
             JOIN venue v ON c.venueid = v.id
             LEFT JOIN attendance a ON a.user_id = e.user_id AND a.class_id = c.id
+            LEFT JOIN users ua ON a.overridden_by = ua.id
             WHERE e.user_id = ? AND e.status = 'confirmed'
             ORDER BY c.schedule_date ASC, c.start_time ASC
         `;
@@ -1072,12 +1074,13 @@ app.get('/api/user/schedule', authenticateToken, async (req, res) => {
         const userId = req.user.id;
         const query = `
             SELECT e.id AS enrollment_id, e.status AS enrollment_status,
-                   c.id AS class_id, c.title, c.schedule_date, c.start_time, c.end_time, c.price, c.description,
-                   g.name AS genre_name,
+                   c.id AS class_id, c.title, DATE_FORMAT(c.schedule_date, '%Y-%m-%d') AS schedule_date, c.start_time, c.end_time, c.price, c.description,
+                   g.id AS genreid, g.name AS genre_name,
                    ch.id AS coach_id, ch.name AS coach_name, ch.classimage AS coach_class_image, ch.image_position AS coach_image_position,
                    u.profile_image AS coach_user_image,
                    v.id AS venue_id, v.name AS venue_name,
-                   a.time_in, a.time_out,
+                   a.time_in, a.time_out, a.is_overridden, a.override_reason, a.overridden_at,
+                   ua.name AS overridden_by_name,
                    CASE 
                        WHEN a.time_out IS NOT NULL THEN 'completed'
                        WHEN a.time_in IS NOT NULL THEN 'timed_in'
@@ -1090,6 +1093,7 @@ app.get('/api/user/schedule', authenticateToken, async (req, res) => {
             LEFT JOIN users u ON ch.user_id = u.id
             JOIN venue v ON c.venueid = v.id
             LEFT JOIN attendance a ON a.user_id = e.user_id AND a.class_id = c.id
+            LEFT JOIN users ua ON a.overridden_by = ua.id
             WHERE e.user_id = ? AND e.status = 'confirmed'
             ORDER BY c.schedule_date ASC, c.start_time ASC
         `;
