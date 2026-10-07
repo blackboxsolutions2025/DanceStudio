@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Venue Rental Builder - Rhythm & Soul Dance Studio</title>
+    <link rel="stylesheet" href="VenueRentalBuilderPage.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div id="header-placeholder"></div>
+
+    <main class="builder-main-container">
+        <div class="back-nav">
+            <a href="../VenueRentalPage/VenueRentalPage.html"><i class="fa-solid fa-arrow-left"></i> Back to Venues</a>
+        </div>
+
+        <div class="builder-grid">
+            <!-- Left Column: Venue Gallery & Details -->
+            <div class="builder-card venue-gallery-card">
+                <h1 id="venueName">Loading Venue...</h1>
+                <div id="venuePrice" class="venue-price"></div>
+                
+                <div class="main-image-container">
+                    <img id="mainVenueImg" src="" alt="Studio Venue">
+                </div>
+
+                <div id="galleryThumbnails" class="gallery-thumbnails">
+                    <!-- Thumbnail images populated via JS -->
+                </div>
+            </div>
+
+            <!-- Right Column: Date & Custom Time Builder -->
+            <div class="builder-card booking-builder-card">
+                <h2><i class="fa-solid fa-clock"></i> Select Date & Custom Time</h2>
+                
+                <div class="form-group">
+                    <label for="rentalDate">Rental Date <span class="required">*</span></label>
+                    <input type="date" id="rentalDate" required>
+                </div>
+
+                <div class="form-row time-row">
+                    <div class="form-group">
+                        <label for="startTime">Start Time <span class="required">*</span></label>
+                        <input type="time" id="startTime" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="endTime">End Time <span class="required">*</span></label>
+                        <input type="time" id="endTime" required>
+                    </div>
+                </div>
+
+                <!-- Error Text for Time Selection -->
+                <div id="timeErrorMsg" style="color: #ef4444; font-size: 0.85rem; margin-top: 6px; display: none; font-weight: 600;"></div>
+
+                <!-- Time Analysis Trigger (Center Aligned) -->
+                <div class="time-analysis-wrapper">
+                    <button type="button" id="timeAnalysisBtn" class="btn-analysis" disabled>
+                        <i class="fa-solid fa-clock-rotate-left"></i> Show Availability
+                    </button>
+                    <small class="form-hint">Select a date to inspect free time blocks and avoid conflicts.</small>
+                </div>
+
+                <div class="checkout-summary" id="checkoutSummary" style="display: none;">
+                    <div class="summary-row">
+                        <span>Selected Duration:</span>
+                        <strong id="selectedHoursCount">0 hours</strong>
+                    </div>
+                    <div class="summary-row">
+                        <span>Total Price:</span>
+                        <strong id="totalPriceDisplay">₱0.00</strong>
+                    </div>
+                    <button type="button" id="proceedCheckoutBtn" class="btn-checkout">
+                        <i class="fa-solid fa-credit-card"></i> Proceed to Payment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Time Analysis Modal -->
+    <div class="analysis-modal-overlay" id="analysisModal">
+        <div class="analysis-modal-card">
+            <div class="analysis-modal-header">
+                <h3><i class="fa-solid fa-clock"></i> Venue Time Analysis</h3>
+                <button type="button" class="analysis-close-btn" id="closeAnalysisModal">&times;</button>
+            </div>
+            <div class="analysis-modal-body" id="analysisModalBody">
+                <!-- Dynamically populated free & booked time slots -->
+            </div>
+            <div class="analysis-modal-footer" style="margin-top: 15px; display: flex; justify-content: flex-end;">
+                <button type="button" class="btn-cancel" id="dismissAnalysisBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../Shared/header.js"></script>
+    <script src="VenueRentalBuilderPage.js"></script>
+</body>
+</html>

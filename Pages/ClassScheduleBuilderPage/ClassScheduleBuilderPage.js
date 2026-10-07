@@ -117,19 +117,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         try {
-            // Fetch existing classes for this date and venue[cite: 4]
-            let url = `/api/classes?date=${selectedDate}&venue=${selectedVenueId}`;
-            const res = await fetch(url);
-            const classes = await res.json();
+            // Fetch both classes and confirmed venue rentals for this date and venue
+            const res = await fetch(`/api/venue-rentals/schedule?venue_id=${selectedVenueId}&date=${selectedDate}`);
+            const data = await res.json();
+            const classes = data.classes || [];
+            const rentals = data.rentals || [];
 
             // Full Day Operating Hours: 12:00 AM (0 mins) to 12:00 AM next day (1440 mins)
             const openMinutes = 0; 
             const closeMinutes = 24 * 60;
 
-            // Map and sort booked classes
-            const bookedClasses = classes
-                .filter(c => String(c.venueid) === String(selectedVenueId))
-                .map(c => {
+            // Map and sort booked items (classes + confirmed rentals)
+            const bookedItems = [
+                ...classes.map(c => {
                     const [sh, sm] = c.start_time.split(':').map(Number);
                     const [eh, em] = c.end_time.split(':').map(Number);
                     const startMins = sh * 60 + sm;
@@ -142,19 +142,33 @@ document.addEventListener('DOMContentLoaded', async () => {
                         endStr: formatTime(endMins),
                         durationStr: formatDuration(endMins - startMins)
                     };
+                }),
+                ...rentals.map(r => {
+                    const [sh, sm] = r.start_time.split(':').map(Number);
+                    const [eh, em] = r.end_time.split(':').map(Number);
+                    const startMins = sh * 60 + sm;
+                    const endMins = eh * 60 + em;
+                    return {
+                        title: 'Private Venue Rental',
+                        start: startMins,
+                        end: endMins,
+                        startStr: formatTime(startMins),
+                        endStr: formatTime(endMins),
+                        durationStr: formatDuration(endMins - startMins)
+                    };
                 })
-                .sort((a, b) => a.start - b.start);
+            ].sort((a, b) => a.start - b.start);
 
             // Calculate free slots
             let freeSlots = [];
             let currentPointer = openMinutes;
 
-            bookedClasses.forEach(bClass => {
-                if (bClass.start > currentPointer) {
-                    freeSlots.push({ start: currentPointer, end: bClass.start });
+            bookedItems.forEach(item => {
+                if (item.start > currentPointer) {
+                    freeSlots.push({ start: currentPointer, end: item.start });
                 }
-                if (bClass.end > currentPointer) {
-                    currentPointer = bClass.end;
+                if (item.end > currentPointer) {
+                    currentPointer = item.end;
                 }
             });
 
@@ -162,22 +176,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 freeSlots.push({ start: currentPointer, end: closeMinutes });
             }
 
-            // Build Modal HTML content with 3-row booked items and 2-row free slots
+            // Build Modal HTML content
             let html = `<p style="color: #94a3b8; margin-bottom: 12px; font-size: 0.9rem; text-align: center;">Venue: <strong style="color:#ffffff;">${selectedVenueName}</strong><br>Date: <strong style="color:#ffffff;">${selectedDate}</strong></p>`;
 
-            if (bookedClasses.length > 0) {
+            if (bookedItems.length > 0) {
                 html += `<h4 style="color: #f87171; font-size: 0.85rem; margin-bottom: 8px; text-align: center;">Already Booked Times:</h4>`;
-                bookedClasses.forEach(b => {
+                bookedItems.forEach(b => {
                     html += `
                         <div class="booked-slot-item">
                             <span class="slot-title" title="${b.title}"><i class="fa-solid fa-ban"></i> ${b.title}</span>
-                            <span class="slot-time">${b.startStr} - ${b.endStr}</span>
+                            <span class="slot-time">${b.startStr} — ${b.endStr}</span>
                             <span class="slot-duration">Duration: ${b.durationStr}</span>
                         </div>
                     `;
                 });
             } else {
-                html += `<p style="color: #10b981; font-size: 0.85rem; margin-bottom: 12px; text-align: center;"><i class="fa-solid fa-circle-check"></i> No classes booked for this venue on this date!</p>`;
+                html += `<p style="color: #10b981; font-size: 0.85rem; margin-bottom: 12px; text-align: center;"><i class="fa-solid fa-circle-check"></i> No classes or venue rentals booked for this venue on this date!</p>`;
             }
 
             html += `<h4 style="color: #34d399; font-size: 0.85rem; margin: 15px 0 8px 0; text-align: center;">Available Free Time Slots:</h4>`;

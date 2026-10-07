@@ -724,11 +724,25 @@ app.post('/api/admin/coaches', authenticateToken, async (req, res) => {
 // --- Get All Venues for Filters ---
 app.get('/api/venues', async (req, res) => {
     try {
-        const [venues] = await pool.execute('SELECT id, name FROM venue ORDER BY name ASC');
+        const [venues] = await pool.execute('SELECT * FROM venue WHERE is_active = 1 ORDER BY name ASC');
         res.json(venues);
     } catch (err) {
         console.error('Fetch Venues Error:', err);
         res.status(500).json({ message: 'Server error while fetching venues.' });
+    }
+});
+
+// --- Admin: Get All Venues (Including Inactive) ---
+app.get('/api/admin/venues', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Access denied. Administrator privileges required.' });
+        }
+        const [venues] = await pool.execute('SELECT * FROM venue ORDER BY name ASC');
+        res.json(venues);
+    } catch (err) {
+        console.error('Fetch Admin Venues Error:', err);
+        res.status(500).json({ message: 'Server error while fetching admin venues.' });
     }
 });
 
@@ -757,19 +771,18 @@ app.post('/api/classes', authenticateToken, async (req, res) => {
             return res.status(400).json({ message: 'Please fill in all required fields.' });
         }
 
-        // Check for time conflicts at the same venue and date
-        const [conflicts] = await pool.execute(
-            `SELECT id, title, start_time, end_time FROM classes 
-             WHERE venueid = ? AND schedule_date = ? 
-             AND NOT (end_time <= ? OR start_time >= ?)`,
-            [venueid, schedule_date, start_time, end_time]
-        );
-
-        if (conflicts.length > 0) {
-            const conflict = conflicts[0];
-            return res.status(400).json({ 
-                message: `Time conflict: This venue is already booked by "${conflict.title}" from ${conflict.start_time} to ${conflict.end_time} on this date.` 
-            });
+        // Check for time conflicts across both classes and confirmed venue rentals
+        const conflictResult = await checkVenueConflict(venueid, schedule_date, start_time, end_time);
+        if (conflictResult) {
+            if (conflictResult.type === 'class') {
+                return res.status(400).json({ 
+                    message: `Time conflict: This venue is already booked by class "${conflictResult.conflict.title}" from ${conflictResult.conflict.start_time} to ${conflictResult.conflict.end_time} on this date.` 
+                });
+            } else {
+                return res.status(400).json({ 
+                    message: `Time conflict: This venue is already booked for a confirmed private rental from ${conflictResult.conflict.start_time} to ${conflictResult.conflict.end_time} on this date.` 
+                });
+            }
         }
 
         const finalCapacity = capacity || 20;
@@ -790,24 +803,29 @@ app.post('/api/classes', authenticateToken, async (req, res) => {
 });
 
 // --- Get Single Class Details Endpoint ---
-app.get('/api/classes/:id', async (req, res) => {
+app.get('/api/venues/:id', async (req, res) => {
     try {
-        const classId = req.params.id;
-        const query = `
-            SELECT c.*, g.name AS genre_name, ch.name AS coach_name, v.name AS venue_name 
-            FROM classes c 
-            JOIN genre g ON c.genreid = g.id 
-            JOIN coach ch ON c.coachid = ch.id 
-            JOIN venue v ON c.venueid = v.id 
-            WHERE c.id = ?
-        `;
-        const [classes] = await pool.execute(query, [classId]);
+        const venueId = req.params.id;
+        const [venues] = await pool.execute('SELECT * FROM venue WHERE id = ?', [venueId]);
         
-        if (classes.length === 0) return res.status(404).json({ message: 'Class not found.' });
-        res.json(classes[0]);
+        if (venues.length === 0) {
+            return res.status(404).json({ message: 'Venue not found.' });
+        }
+
+        const venue = venues[0];
+
+        // Fetch gallery photos from your dedicated venue_images table sorted by display_order
+        const [galleryImages] = await pool.execute(
+            'SELECT id, image_path, display_order FROM venue_images WHERE venue_id = ? ORDER BY display_order ASC', 
+            [venueId]
+        );
+
+        venue.gallery_images = galleryImages;
+
+        res.json(venue);
     } catch (err) {
-        console.error('Fetch Single Class Error:', err);
-        res.status(500).json({ message: 'Server error fetching class details.' });
+        console.error('Fetch Venue Details Error:', err);
+        res.status(500).json({ message: 'Server error while fetching venue details.' });
     }
 });
 
@@ -847,7 +865,7 @@ app.post('/api/checkout', authenticateToken, async (req, res) => {
                             quantity: 1
                         }],
                         payment_method_types: ['gcash', 'paymaya', 'card'],
-                        success_url: 'http://localhost:3000/PaymentSuccessPage/PaymentSuccessPage.html',
+                        success_url: 'http://localhost:3000/PaymentSuccessPage/PaymentSuccessPage.html?type=class',
                         cancel_url: `http://localhost:3000/PaymentFailedPage/PaymentFailedPage.html?classId=${class_id}`,
                         description: `Enrollment for ${displayTitle}`
                     }
@@ -904,66 +922,122 @@ app.post('/api/webhooks/paymongo', express.raw({ type: 'application/json' }), as
             if (eventType === 'checkout_session.payment.paid') {
                 await pool.execute('UPDATE payments SET status = ? WHERE paymongo_checkout_id = ?', ['paid', checkoutId]);
                 
-                const [payments] = await pool.execute('SELECT enrollment_id FROM payments WHERE paymongo_checkout_id = ?', [checkoutId]);
+                // Check both enrollment_id and venue_rental_id
+                const [payments] = await pool.execute('SELECT enrollment_id, venue_rental_id FROM payments WHERE paymongo_checkout_id = ?', [checkoutId]);
                 if (payments.length > 0) {
-                    const enrollmentId = payments[0].enrollment_id;
-                    await pool.execute('UPDATE enrollments SET status = ? WHERE id = ?', ['confirmed', enrollmentId]);
+                    const paymentRecord = payments[0];
                     
-                    const [enrollments] = await pool.execute('SELECT class_id, user_id FROM enrollments WHERE id = ?', [enrollmentId]);
-                    if (enrollments.length > 0) {
-                        const { class_id, user_id } = enrollments[0];
-                        await pool.execute('UPDATE classes SET slots_remaining = slots_remaining - 1 WHERE id = ?', [class_id]);
+                    // 1. Handle Class Enrollment
+                    if (paymentRecord.enrollment_id) {
+                        const enrollmentId = paymentRecord.enrollment_id;
+                        await pool.execute('UPDATE enrollments SET status = ? WHERE id = ?', ['confirmed', enrollmentId]);
+                        
+                        const [enrollments] = await pool.execute('SELECT class_id, user_id FROM enrollments WHERE id = ?', [enrollmentId]);
+                        if (enrollments.length > 0) {
+                            const { class_id, user_id } = enrollments[0];
+                            await pool.execute('UPDATE classes SET slots_remaining = slots_remaining - 1 WHERE id = ?', [class_id]);
 
-                        // 1. Fetch user and class details for the confirmation email[cite: 20]
-                        const [users] = await pool.execute('SELECT name, email FROM users WHERE id = ?', [user_id]);
-                        const [classes] = await pool.execute('SELECT title, schedule_date, start_time FROM classes WHERE id = ?', [class_id]);
+                            const [users] = await pool.execute('SELECT name, email FROM users WHERE id = ?', [user_id]);
+                            const [classes] = await pool.execute('SELECT title, schedule_date, start_time FROM classes WHERE id = ?', [class_id]);
 
-                        if (users.length > 0 && classes.length > 0) {
-                            const user = users[0];
-                            const danceClass = classes[0];
-                            
-                            // 2. Format the date (e.g., "Sun Oct 11, 2026")
-                            const dateObj = new Date(danceClass.schedule_date);
-                            const days = ['Sunday -', 'Monday -', 'Tuesday - ', 'Wednesday -', 'Thursday -', 'Friday -', 'Saturday -'];
+                            if (users.length > 0 && classes.length > 0) {
+                                const user = users[0];
+                                const danceClass = classes[0];
+                                
+                                const dateObj = new Date(danceClass.schedule_date);
+                                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                const formattedDate = `${days[dateObj.getUTCDay()]} - ${months[dateObj.getUTCMonth()]} ${dateObj.getUTCDate()}, ${dateObj.getUTCFullYear()}`;
+
+                                const [hours, minutes] = danceClass.start_time.split(':');
+                                let h = parseInt(hours, 10);
+                                const ampm = h >= 12 ? 'PM' : 'AM';
+                                h = h % 12 || 12;
+                                const formattedTime = `${h}:${minutes} ${ampm}`;
+
+                                const schedulePageUrl = `http://localhost:3000/StudentClassSchedulePage/StudentClassSchedulePage.html`;
+
+                                await transporter.sendMail({
+                                    from: '"Rhythm & Soul Dance Studio" <no-reply@rhythmsoul.com>',
+                                    to: user.email,
+                                    subject: `Enrollment Confirmed: ${danceClass.title} - Rhythm & Soul`,
+                                    html: `
+                                        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f1015; color: #ffffff; padding: 30px; border-radius: 12px; max-width: 500px; margin: auto;">
+                                            <h2 style="color: #10b981; margin-bottom: 10px;">Payment Successful, ${user.name}!</h2>
+                                            <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;">Your payment for <strong>${danceClass.title}</strong> has been successfully processed, and your spot is fully secured.</p>
+                                            <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Schedule:</strong> ${formattedDate} at ${formattedTime}</p>
+                                            <div style="text-align: center; margin: 30px 0;">
+                                                <a href="${schedulePageUrl}" style="display: inline-block; background-color: #10b981; color: #0f1015; padding: 12px 25px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 1rem;">View My Class Schedule</a>
+                                            </div>
+                                            <p style="color: #a0a5b1; font-size: 0.85rem; border-top: 1px solid #2b2f3a; padding-top: 15px;">We look forward to seeing you in class!</p>
+                                        </div>
+                                    `
+                                });
+                            }
+                        }
+                    } 
+                    // 2. Handle Venue Rental
+                    else if (paymentRecord.venue_rental_id) {
+                        const venueRentalId = paymentRecord.venue_rental_id;
+                        await pool.execute('UPDATE venue_rentals SET status = ? WHERE id = ?', ['confirmed', venueRentalId]);
+                        
+                        const [rentals] = await pool.execute(
+                            `SELECT vr.rental_date, vr.start_time, vr.end_time, vr.total_price, v.name AS venue_name, u.name, u.email 
+                            FROM venue_rentals vr 
+                            JOIN venue v ON vr.venue_id = v.id 
+                            JOIN users u ON vr.user_id = u.id 
+                            WHERE vr.id = ?`,
+                            [venueRentalId]
+                        );
+
+                        if (rentals.length > 0) {
+                            const rental = rentals[0];
+                            const dateObj = new Date(rental.rental_date);
+                            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
                             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                            const formattedDate = `${days[dateObj.getUTCDay()]} ${months[dateObj.getUTCMonth()]} ${dateObj.getUTCDate()}, ${dateObj.getUTCFullYear()}`;
+                            const formattedDate = `${days[dateObj.getUTCDay()]} - ${months[dateObj.getUTCMonth()]} ${dateObj.getUTCDate()}, ${dateObj.getUTCFullYear()}`;
 
-                            // 3. Format the time from "10:00:00" to "10:00 AM"
-                            const [hours, minutes] = danceClass.start_time.split(':');
-                            let h = parseInt(hours, 10);
-                            const ampm = h >= 12 ? 'PM' : 'AM';
-                            h = h % 12;
-                            h = h ? h : 12;
-                            const formattedTime = `${h}:${minutes} ${ampm}`;
+                            const formatTimeStr = (timeStr) => {
+                                if (!timeStr) return '';
+                                const [hours, minutes] = timeStr.split(':');
+                                let h = parseInt(hours, 10);
+                                const ampm = h >= 12 ? 'PM' : 'AM';
+                                h = h % 12 || 12;
+                                return `${h}:${minutes} ${ampm}`;
+                            };
 
-                            // 4. Define the link to the student class schedule page[cite: 20]
-                            const schedulePageUrl = `http://localhost:3000/StudentClassSchedulePage/StudentClassSchedulePage.html`;
+                            const venuePageUrl = `http://localhost:3000/VenueRentalPage/VenueRentalPage.html`;
 
-                            // 5. Send the confirmation email via Nodemailer[cite: 20]
                             await transporter.sendMail({
                                 from: '"Rhythm & Soul Dance Studio" <no-reply@rhythmsoul.com>',
-                                to: user.email,
-                                subject: `Enrollment Confirmed: ${danceClass.title} - Rhythm & Soul`,
+                                to: rental.email,
+                                subject: `Venue Rental Confirmed: ${rental.venue_name} - Rhythm & Soul`,
                                 html: `
                                     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f1015; color: #ffffff; padding: 30px; border-radius: 12px; max-width: 500px; margin: auto;">
-                                        <h2 style="color: #10b981; margin-bottom: 10px;">Payment Successful, ${user.name}!</h2>
-                                        <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;">Your payment for <strong>${danceClass.title}</strong> has been successfully processed, and your spot is fully secured.</p>
-                                        <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Schedule:</strong> ${formattedDate} at ${formattedTime}</p>
+                                        <h2 style="color: #10b981; margin-bottom: 10px;">Payment Successful, ${rental.name}!</h2>
+                                        <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;">Your payment for <strong>${rental.venue_name}</strong> has been successfully processed, and your venue rental is fully confirmed.</p>
+                                        <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Date:</strong> ${formattedDate}</p>
+                                        <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Time:</strong> ${formatTimeStr(rental.start_time)} - ${formatTimeStr(rental.end_time)}</p>
                                         <div style="text-align: center; margin: 30px 0;">
-                                            <a href="${schedulePageUrl}" style="display: inline-block; background-color: #10b981; color: #0f1015; padding: 12px 25px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 1rem;">View My Class Schedule</a>
+                                            <a href="${venuePageUrl}" style="display: inline-block; background-color: #10b981; color: #0f1015; padding: 12px 25px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 1rem;">View Venues</a>
                                         </div>
-                                        <p style="color: #a0a5b1; font-size: 0.85rem; border-top: 1px solid #2b2f3a; padding-top: 15px;">We look forward to seeing you in class!</p>
+                                        <p style="color: #a0a5b1; font-size: 0.85rem; border-top: 1px solid #2b2f3a; padding-top: 15px;">Thank you for booking with Rhythm & Soul Dance Studio!</p>
                                     </div>
                                 `
                             });
                         }
                     }
                 }
-            } else if (eventType === 'checkout_session.payment.failed' || eventType === 'checkout_session.payment.expired') {
+            }
+            else if (eventType === 'checkout_session.payment.failed' || eventType === 'checkout_session.payment.expired') {
                 await pool.execute('UPDATE payments SET status = ? WHERE paymongo_checkout_id = ?', ['failed', checkoutId]);
-                const [payments] = await pool.execute('SELECT enrollment_id FROM payments WHERE paymongo_checkout_id = ?', [checkoutId]);
+                const [payments] = await pool.execute('SELECT enrollment_id, venue_rental_id FROM payments WHERE paymongo_checkout_id = ?', [checkoutId]);
                 if (payments.length > 0) {
-                    await pool.execute('UPDATE enrollments SET status = ? WHERE id = ?', ['cancelled', payments[0].enrollment_id]);
+                    if (payments[0].enrollment_id) {
+                        await pool.execute('UPDATE enrollments SET status = ? WHERE id = ?', ['cancelled', payments[0].enrollment_id]);
+                    } else if (payments[0].venue_rental_id) {
+                        await pool.execute('UPDATE venue_rentals SET status = ? WHERE id = ?', ['cancelled', payments[0].venue_rental_id]);
+                    }
                 }
             }
         }
@@ -1454,6 +1528,521 @@ app.post('/api/attendance/override', authenticateToken, async (req, res) => {
     }
 });
 
+// --- Universal Conflict Checking Helper Function ---
+async function checkVenueConflict(venueId, date, startTime, endTime, excludeRentalId = null) {
+    // 1. Check classes table
+    const [classConflicts] = await pool.execute(
+        `SELECT id, title, start_time, end_time FROM classes 
+         WHERE venueid = ? AND schedule_date = ? 
+         AND NOT (end_time <= ? OR start_time >= ?)`,
+        [venueId, date, startTime, endTime]
+    );
+
+    if (classConflicts.length > 0) {
+        return { type: 'class', conflict: classConflicts[0] };
+    }
+
+    // 2. Check confirmed venue_rentals table
+    let rentalQuery = `SELECT id, start_time, end_time FROM venue_rentals 
+                       WHERE venue_id = ? AND rental_date = ? AND status = 'confirmed' 
+                       AND NOT (end_time <= ? OR start_time >= ?)`;
+    let rentalParams = [venueId, date, startTime, endTime];
+
+    if (excludeRentalId) {
+        rentalQuery += ` AND id != ?`;
+        rentalParams.push(excludeRentalId);
+    }
+
+    const [rentalConflicts] = await pool.execute(rentalQuery, rentalParams);
+
+    if (rentalConflicts.length > 0) {
+        return { type: 'rental', conflict: rentalConflicts[0] };
+    }
+
+    return null;
+}
+
+// --- Get Available Time Slots for Venue Rental ---
+app.get('/api/venue-rentals/available-slots', async (req, res) => {
+    try {
+        const { venue_id, date } = req.query;
+        if (!venue_id || !date) {
+            return res.status(400).json({ message: 'Venue ID and date are required.' });
+        }
+
+        // Define standard operating hours (e.g., 08:00 to 22:00 in 1-hour blocks)
+        const operatingHours = [
+            { start: '08:00:00', end: '09:00:00', label: '08:00 AM - 09:00 AM' },
+            { start: '09:00:00', end: '10:00:00', label: '09:00 AM - 10:00 AM' },
+            { start: '10:00:00', end: '11:00:00', label: '10:00 AM - 11:00 AM' },
+            { start: '11:00:00', end: '12:00:00', label: '11:00 AM - 12:00 PM' },
+            { start: '12:00:00', end: '13:00:00', label: '12:00 PM - 01:00 PM' },
+            { start: '13:00:00', end: '14:00:00', label: '01:00 PM - 02:00 PM' },
+            { start: '14:00:00', end: '15:00:00', label: '02:00 PM - 03:00 PM' },
+            { start: '15:00:00', end: '16:00:00', label: '03:00 PM - 04:00 PM' },
+            { start: '16:00:00', end: '17:00:00', label: '04:00 PM - 05:00 PM' },
+            { start: '17:00:00', end: '18:00:00', label: '05:00 PM - 06:00 PM' },
+            { start: '18:00:00', end: '19:00:00', label: '06:00 PM - 07:00 PM' },
+            { start: '19:00:00', end: '20:00:00', label: '07:00 PM - 08:00 PM' },
+            { start: '20:00:00', end: '21:00:00', label: '08:00 PM - 09:00 PM' },
+            { start: '21:00:00', end: '22:00:00', label: '09:00 PM - 10:00 PM' }
+        ];
+
+        const availableSlots = [];
+        for (const slot of operatingHours) {
+            const conflict = await checkVenueConflict(venue_id, date, slot.start, slot.end);
+            if (!conflict) {
+                availableSlots.push({
+                    ...slot,
+                    price: 1500.00 // Standard hourly rental rate
+                });
+            }
+        }
+
+        res.json(availableSlots);
+    } catch (err) {
+        console.error('Fetch Available Slots Error:', err);
+        res.status(500).json({ message: 'Server error while fetching available slots.' });
+    }
+});
+
+// --- Initiate Venue Rental Checkout Endpoint ---
+app.post('/api/venue-rentals', authenticateToken, async (req, res) => {
+    try {
+        const { venue_id, rental_date, start_time, end_time, total_price } = req.body;
+        const userId = req.user.id;
+
+        if (!venue_id || !rental_date || !start_time || !end_time || !total_price) {
+            return res.status(400).json({ message: 'All rental fields are required.' });
+        }
+
+        // Universal availability check before booking
+        const conflict = await checkVenueConflict(venue_id, rental_date, start_time, end_time);
+        if (conflict) {
+            return res.status(400).json({ 
+                message: conflict.type === 'class' 
+                    ? `Time conflict: A scheduled class ("${conflict.conflicts?.title || 'Class'}") occupies this time slot.` 
+                    : 'Time conflict: This time slot is already booked for a private rental.' 
+            });
+        }
+
+        // Fetch venue name for PayMongo description
+        const [venues] = await pool.execute('SELECT name FROM venue WHERE id = ?', [venue_id]);
+        const venueName = venues.length > 0 ? venues.name : 'Dance Studio Venue';
+
+        const amountInCentavos = Math.round(total_price * 100);
+
+        // Create PayMongo Checkout Session
+        const paymongoRes = await fetch('https://api.paymongo.com/v1/checkout_sessions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${Buffer.from(process.env.PAYMONGO_SECRET_KEY).toString('base64')}`
+            },
+            body: JSON.stringify({
+                data: {
+                    attributes: {
+                        line_items: [{
+                            name: `Venue Rental: ${venueName}`,
+                            amount: amountInCentavos,
+                            currency: 'PHP',
+                            quantity: 1
+                        }],
+                        payment_method_types: ['gcash', 'paymaya', 'card'],
+                        success_url: 'http://localhost:3000/PaymentSuccessPage/PaymentSuccessPage.html?type=venue',
+                        cancel_url: 'http://localhost:3000/VenueRentalPage/VenueRentalPage.html?cancelled=true',
+                        description: `Private Rental for ${venueName} on ${rental_date}`
+                    }
+                }
+            })
+        });
+
+        const paymongoData = await paymongoRes.json();
+        if (!paymongoRes.ok || !paymongoData.data) {
+            return res.status(500).json({ message: paymongoData.errors?.[0]?.detail || 'Failed to initialize checkout session.' });
+        }
+
+        const checkoutId = paymongoData.data.id;
+        const checkoutUrl = paymongoData.data.attributes.checkout_url;
+
+        // Insert pending rental record
+        const [rentalResult] = await pool.execute(
+            `INSERT INTO venue_rentals (user_id, venue_id, rental_date, start_time, end_time, total_price, status) 
+             VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
+            [userId, venue_id, rental_date, start_time, end_time, total_price]
+        );
+
+        // Insert payment record linked to venue_rental_id
+        await pool.execute(
+            `INSERT INTO payments (venue_rental_id, amount, paymongo_checkout_id, status) VALUES (?, ?, ?, 'pending')`,
+            [rentalResult.insertId, total_price, checkoutId]
+        );
+
+        res.json({ checkoutUrl });
+    } catch (err) {
+        console.error('Venue Rental Checkout Error:', err);
+        res.status(500).json({ message: 'Server error while initiating venue rental.' });
+    }
+});
+
+// --- Get Authenticated User Venue Rentals ---
+app.get('/api/user/rentals', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const [rentals] = await pool.execute(
+            `SELECT vr.*, v.name AS venue_name 
+             FROM venue_rentals vr 
+             JOIN venue v ON vr.venue_id = v.id 
+             WHERE vr.user_id = ? 
+             ORDER BY vr.rental_date DESC, vr.start_time DESC`,
+            [userId]
+        );
+        res.json(rentals);
+    } catch (err) {
+        console.error('Fetch User Rentals Error:', err);
+        res.status(500).json({ message: 'Server error while fetching rentals.' });
+    }
+});
+
+// --- Admin: Get All Venue Rentals ---
+app.get('/api/admin/venue-rentals', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Access denied. Admin privileges required.' });
+        }
+
+        const [rentals] = await pool.execute(
+            `SELECT vr.*, v.name AS venue_name, u.name AS renter_name, u.email AS renter_email, u.phone AS renter_phone 
+             FROM venue_rentals vr 
+             JOIN venue v ON vr.venue_id = v.id 
+             JOIN users u ON vr.user_id = u.id 
+             ORDER BY vr.rental_date DESC, vr.start_time DESC`
+        );
+        res.json(rentals);
+    } catch (err) {
+        console.error('Admin Fetch Rentals Error:', err);
+        res.status(500).json({ message: 'Server error while fetching admin rentals.' });
+    }
+});
+
+// --- Admin: Update Venue Rental Status (Cancel/Confirm) ---
+app.put('/api/admin/venue-rentals/:id/status', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Access denied. Admin privileges required.' });
+        }
+        const { status } = req.body;
+        const rentalId = req.params.id;
+
+        await pool.execute('UPDATE venue_rentals SET status = ? WHERE id = ?', [status, rentalId]);
+        res.json({ message: `Venue rental successfully marked as ${status}.` });
+    } catch (err) {
+        console.error('Update Rental Status Error:', err);
+        res.status(500).json({ message: 'Server error updating rental status.' });
+    }
+});
+
+app.get('/venues', (req, res) => {
+    res.sendFile(path.join(__dirname, 'Pages', 'VenueListPage', 'VenueListPage.html'));
+});
+
+// --- Admin: Delete Venue Endpoint ---
+app.delete('/api/admin/venues/:id', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Access denied. Administrator privileges required.' });
+        }
+        const venueId = req.params.id;
+        const [venues] = await pool.execute('SELECT image FROM venue WHERE id = ?', [venueId]);
+        if (venues.length === 0) {
+            return res.status(404).json({ message: 'Venue not found.' });
+        }
+        const venue = venues[0];
+
+        // 1. Delete main venue cover image file from disk if it exists
+        if (venue.image && venue.image.includes('/venueimages/')) {
+            const filename = venue.image.split('/venueimages/').pop();
+            const filePath = path.join(__dirname, 'public', 'venueimages', filename);
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
+        }
+
+        // 2. Fetch and delete all associated gallery image files from disk
+        const [galleryImages] = await pool.execute('SELECT image_path FROM venue_images WHERE venue_id = ?', [venueId]);
+        for (const img of galleryImages) {
+            if (img.image_path && img.image_path.includes('/venueimages/')) {
+                const filename = img.image_path.split('/venueimages/').pop();
+                const filePath = path.join(__dirname, 'public', 'venueimages', filename);
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                }
+            }
+        }
+
+        // 3. Delete venue record (cascade will handle venue_images table rows)
+        await pool.execute('DELETE FROM venue WHERE id = ?', [venueId]);
+        res.json({ message: 'Venue and all associated images successfully deleted.' });
+    } catch (err) {
+        console.error('Delete Venue Error:', err);
+        res.status(500).json({ message: 'Server error while deleting venue.' });
+    }
+});
+
+// --- Configure Multer Storage for Venue Images (Folder: venueimages) ---
+const venueImgStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadDir = path.join(__dirname, 'public', 'venueimages');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        cb(null, `venue-${uniqueSuffix}${ext}`);
+    }
+});
+
+const uploadVenueImage = multer({
+    storage: venueImgStorage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed!'), false);
+        }
+    }
+});
+
+const uploadVenueFilesMiddleware = uploadVenueImage.fields([
+    { name: 'venueImage', maxCount: 1 },
+    { name: 'galleryFiles', maxCount: 20 }
+]);
+
+app.use('/venueimages', express.static(path.join(__dirname, 'public', 'venueimages')));
+
+// --- Admin: Create Venue Endpoint ---
+app.post('/api/admin/venues', authenticateToken, uploadVenueFilesMiddleware, async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Access denied. Administrator privileges required.' });
+        }
+
+        const { name, location, location_link, hourly_rate, galleryMeta } = req.body;
+        if (!name) {
+            return res.status(400).json({ message: 'Venue name is required.' });
+        }
+
+        await connection.beginTransaction();
+
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const mainImagePath = req.files && req.files['venueImage'] ? `/venueimages/${req.files['venueImage'][0].filename}` : null;        
+        
+        const [venueResult] = await connection.execute(
+            'INSERT INTO venue (name, image, location, location_link, hourly_rate) VALUES (?, ?, ?, ?, ?)',
+            [name, mainImagePath, location || null, location_link || null, hourly_rate || 1500.00]
+        );
+
+        const venueId = venueResult.insertId;
+
+        // Process Gallery Images & Display Order
+        const galleryFiles = req.files && req.files['galleryFiles'] ? req.files['galleryFiles'] : [];
+        const parsedMeta = galleryMeta ? JSON.parse(galleryMeta) : [];
+
+        let fileIndex = 0;
+        for (let i = 0; i < parsedMeta.length; i++) {
+            const meta = parsedMeta[i];
+            let imagePath = '';
+
+            if (meta.type === 'new') {
+                if (galleryFiles[fileIndex]) {
+                    imagePath = `${baseUrl}/venueimages/${galleryFiles[fileIndex].filename}`;
+                    fileIndex++;
+                }
+            } else if (meta.type === 'existing') {
+                imagePath = meta.url;
+            }
+
+            if (imagePath) {
+                await connection.execute(
+                    'INSERT INTO venue_images (venue_id, image_path, display_order) VALUES (?, ?, ?)',
+                    [venueId, imagePath, i]
+                );
+            }
+        }
+
+        await connection.commit();
+        res.status(201).json({ message: 'Venue successfully created!' });
+    } catch (err) {
+        await connection.rollback();
+        console.error('Create Venue Error:', err);
+        if (err.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ message: 'A venue with this name already exists.' });
+        }
+        res.status(500).json({ message: 'Server error while creating venue.' });
+    } finally {
+        connection.release();
+    }
+});
+
+// --- Admin: Update Venue Endpoint ---
+app.put('/api/admin/venues/:id', authenticateToken, uploadVenueFilesMiddleware, async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Access denied. Administrator privileges required.' });
+        }
+
+        const venueId = req.params.id;
+        const { name, location, location_link, hourly_rate, galleryMeta } = req.body;
+
+        const [existing] = await connection.execute('SELECT id, image FROM venue WHERE id = ?', [venueId]);
+        if (existing.length === 0) {
+            return res.status(404).json({ message: 'Venue not found.' });
+        }
+
+        await connection.beginTransaction();
+
+        const venue = existing[0];
+        let mainImagePath = venue.image;
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+        // Handle Main Venue Image Replacement & Old File Cleanup
+        if (req.files && req.files['venueImage']) {
+            mainImagePath = `${baseUrl}/venueimages/${req.files['venueImage'][0].filename}`;
+
+            if (venue.image && venue.image.includes('/venueimages/')) {
+                const oldFilename = venue.image.split('/venueimages/').pop();
+                const oldFilePath = path.join(__dirname, 'public', 'venueimages', oldFilename);
+                if (fs.existsSync(oldFilePath)) {
+                    fs.unlinkSync(oldFilePath);
+                }
+            }
+        }
+
+        await connection.execute(
+            'UPDATE venue SET name = ?, image = ?, location = ?, location_link = ?, hourly_rate = ? WHERE id = ?',
+            [name, mainImagePath, location || null, location_link || null, hourly_rate || 1500.00, venueId]
+        );
+
+        // Fetch old gallery images before clearing mappings to check which ones were removed
+        const [oldGalleryImages] = await connection.execute('SELECT image_path FROM venue_images WHERE venue_id = ?', [venueId]);
+
+        // Clear existing gallery mappings in DB
+        await connection.execute('DELETE FROM venue_images WHERE venue_id = ?', [venueId]);
+
+        const galleryFiles = req.files && req.files['galleryFiles'] ? req.files['galleryFiles'] : [];
+        const parsedMeta = galleryMeta ? JSON.parse(galleryMeta) : [];
+
+        // Collect URLs of existing gallery images that are still kept by the admin
+        const keptUrls = new Set(parsedMeta.filter(m => m.type === 'existing').map(m => m.url));
+
+        // Identify and physically delete any old gallery images that were removed from the form
+        for (const oldImg of oldGalleryImages) {
+            if (!keptUrls.has(oldImg.image_path)) {
+                if (oldImg.image_path && oldImg.image_path.includes('/venueimages/')) {
+                    const filename = oldImg.image_path.split('/venueimages/').pop();
+                    const filePath = path.join(__dirname, 'public', 'venueimages', filename);
+                    if (fs.existsSync(filePath)) {
+                        fs.unlinkSync(filePath);
+                    }
+                }
+            }
+        }
+
+        // Re-insert gallery images according to the new sequence order
+        let fileIndex = 0;
+        for (let i = 0; i < parsedMeta.length; i++) {
+            const meta = parsedMeta[i];
+            let imagePath = '';
+
+            if (meta.type === 'new') {
+                if (galleryFiles[fileIndex]) {
+                    imagePath = `${baseUrl}/venueimages/${galleryFiles[fileIndex].filename}`;
+                    fileIndex++;
+                }
+            } else if (meta.type === 'existing') {
+                imagePath = meta.url;
+            }
+
+            if (imagePath) {
+                await connection.execute(
+                    'INSERT INTO venue_images (venue_id, image_path, display_order) VALUES (?, ?, ?)',
+                    [venueId, imagePath, i]
+                );
+            }
+        }
+
+        await connection.commit();
+        res.json({ message: 'Venue successfully updated!' });
+    } catch (err) {
+        await connection.rollback();
+        console.error('Update Venue Error:', err);
+        if (err.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ message: 'A venue with this name already exists.' });
+        }
+        res.status(500).json({ message: 'Server error while updating venue.' });
+    } finally {
+        connection.release();
+    }
+});
+
+// --- Admin: Toggle Venue Active/Inactive Status (Soft Delete) ---
+app.put('/api/admin/venues/:id/status', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Access denied. Administrator privileges required.' });
+        }
+        const venueId = req.params.id;
+        const { is_active } = req.body; // Expects 0 (inactive) or 1 (active)
+
+        const [venues] = await pool.execute('SELECT id, name FROM venue WHERE id = ?', [venueId]);
+        if (venues.length === 0) {
+            return res.status(404).json({ message: 'Venue not found.' });
+        }
+
+        await pool.execute('UPDATE venue SET is_active = ? WHERE id = ?', [is_active, venueId]);
+        
+        const statusText = is_active ? 'activated' : 'deactivated';
+        res.json({ message: `Venue successfully ${statusText}. All historical records remain intact.` });
+    } catch (err) {
+        console.error('Update Venue Status Error:', err);
+        res.status(500).json({ message: 'Server error while updating venue status.' });
+    }
+});
+
+// --- Get Venue Schedule (Classes & Rentals) for Availability Modal ---
+app.get('/api/venue-rentals/schedule', async (req, res) => {
+    try {
+        const { venue_id, date } = req.query;
+        if (!venue_id || !date) {
+            return res.status(400).json({ message: 'Venue ID and date are required.' });
+        }
+
+        // 1. Fetch booked classes using direct date matching
+        const [classes] = await pool.execute(
+            `SELECT id, title, start_time, end_time FROM classes 
+             WHERE venueid = ? AND schedule_date = ?`,
+            [venue_id, date]
+        );
+
+        // 2. Fetch venue rentals ONLY if their status is 'confirmed'
+        const [rentals] = await pool.execute(
+            `SELECT id, start_time, end_time FROM venue_rentals 
+             WHERE venue_id = ? AND rental_date = ? AND status = 'confirmed'`,
+            [venue_id, date]
+        );
+
+        res.json({ classes, rentals });
+    } catch (err) {
+        console.error('Fetch Venue Schedule Error:', err);
+        res.status(500).json({ message: 'Server error while fetching venue schedule.' });
+    }
+});
 
 
 

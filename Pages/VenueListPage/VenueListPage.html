@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Venue Management - Rhythm & Soul</title>
+    <link rel="stylesheet" href="../Shared/header.css">
+    <link rel="stylesheet" href="VenueListPage.css">
+</head>
+<body>
+    <!-- Global Header Placeholder -->
+    <div id="header-placeholder"></div>
+
+    <main class="admin-main-container">
+        <!-- Header & Global Controls -->
+        <div class="page-header-row">
+            <div class="title-area">
+                <h1>Venue Management</h1>
+                <p>Monitor and manage studio rooms, locations, and facility details.</p>
+            </div>
+            <div class="header-action-buttons">
+                <a href="../VenueBuilderPage/VenueBuilderPage.html" class="btn-primary">
+                    <i class="fa-solid fa-plus"></i> Add Venue
+                </a>
+            </div>
+        </div>
+
+        <!-- The Admin Data Table -->
+        <div class="table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Venue Name</th>
+                        <th>Location & Address</th>
+                        <th>Map Link</th>
+                        <th>Hourly Rate</th>
+                        <th>Status</th>
+                        <th>Created Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="venueTableBody">
+                    <!-- Dynamically injected -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script src="../Shared/header.js"></script>
+    <script src="VenueListPage.js"></script>
+</body>
+</html>

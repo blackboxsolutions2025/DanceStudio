@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Venue Rentals - Rhythm & Soul Dance Studio</title>
+    <link rel="stylesheet" href="../Shared/header.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="VenueRentalPage.css">
+</head>
+<body>
+    <div id="header-placeholder"></div>
+
+    <main class="rental-main-container">
+        <section class="rental-hero">
+            <h1>Our Studio Venues</h1>
+            <p>Explore our professional studios equipped with premium sound systems, professional flooring, and mirrors.</p>
+        </section>
+
+        <!-- Venues Grid -->
+        <div id="venuesGrid" class="venues-grid">
+            <!-- Dynamically populated venue cards matching ClassSchedule style -->
+        </div>
+
+        <!-- My Rentals Section -->
+        <section class="my-rentals-section">
+            <h2><i class="fa-solid fa-list-check"></i> My Venue Rentals</h2>
+            <div id="myRentalsList" class="my-rentals-list">
+                <p class="empty-text">Please log in to view your rental history.</p>
+            </div>
+        </section>
+    </main>
+
+    <script src="../Shared/header.js"></script>
+    <script src="VenueRentalPage.js"></script>
+</body>
+</html>
