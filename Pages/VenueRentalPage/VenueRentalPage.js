@@ -1,7 +1,5 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const venuesGrid = document.getElementById('venuesGrid');
-    const myRentalsList = document.getElementById('myRentalsList');
-    const token = localStorage.getItem('token');
 
     // Load Venues
     try {
@@ -47,39 +45,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (err) {
         console.error('Failed to load venues:', err);
     }
-
-    // Load User Rentals
-    async function loadMyRentals() {
-        if (!token) return;
-        try {
-            const res = await fetch('/api/user/rentals', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const rentals = await res.json();
-                myRentalsList.innerHTML = '';
-                if (rentals.length === 0) {
-                    myRentalsList.innerHTML = '<p class="empty-text">You have no venue rentals.</p>';
-                    return;
-                }
-
-                rentals.forEach(r => {
-                    const item = document.createElement('div');
-                    item.className = 'rental-item-card';
-                    item.innerHTML = `
-                        <div class="venue-title">${r.venue_name}</div>
-                        <div><strong>Date:</strong> ${r.rental_date.split('T')[0]}</div>
-                        <div><strong>Time:</strong> ${r.start_time} - ${r.end_time}</div>
-                        <div><strong>Price:</strong> ₱${r.total_price}</div>
-                        <div><strong>Status:</strong> <span class="badge-${r.status}">${r.status.toUpperCase()}</span></div>
-                    `;
-                    myRentalsList.appendChild(item);
-                });
-            }
-        } catch (err) {
-            console.error('Failed to load user rentals:', err);
-        }
-    }
-
-    loadMyRentals();
 });

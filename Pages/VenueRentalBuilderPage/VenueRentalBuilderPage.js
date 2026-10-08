@@ -241,6 +241,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const calculatePricing = () => {
         const start = startTimeInput.value;
         const end = endTimeInput.value;
+        const date = rentalDate.value;
+
+        if (date && start) {
+            // Check if the chosen start time is in the past
+            if (isPastTime(date, start)) {
+                timeErrorMsg.textContent = 'Error: Cannot select a start time that has already passed.';
+                timeErrorMsg.style.display = 'block';
+                checkoutSummary.style.display = 'none';
+                return;
+            }
+        }
 
         if (start && end) {
             const startMins = timeToMins(start);
@@ -297,6 +308,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        // Check if start time is in the past
+        if (isPastTime(date, start)) {
+            timeErrorMsg.textContent = 'Error: Cannot select a start time that has already passed.';
+            timeErrorMsg.style.display = 'block';
+            triggerErrorModal('You cannot book a time slot that has already passed.', 'Invalid Time');
+            return;
+        }
+
+        if (timeToMins(start) >= timeToMins(end)) {
+            timeErrorMsg.textContent = 'Error: Start time must be earlier than end time.';
+            timeErrorMsg.style.display = 'block';
+            return;
+        }
+
         const diffMins = timeToMins(end) - timeToMins(start);
         const totalPrice = (diffMins / 60) * hourlyRateVal;
 
@@ -339,4 +364,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             triggerErrorModal('Server error during checkout.', 'Network Error');
         }
     });
+
+    // Helper function to check if selected date and start time are in the past
+    const isPastTime = (dateStr, timeStr) => {
+        if (!dateStr || !timeStr) return false;
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        const selectedDateTime = new Date(year, month - 1, day, hours, minutes, 0);
+        return selectedDateTime < new Date();
+    };
 });

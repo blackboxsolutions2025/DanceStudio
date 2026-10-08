@@ -662,6 +662,31 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderAttendeeList(attendees) {
         attendeeListContainer.innerHTML = '';
 
+        const countPresentEl = document.getElementById('countPresent');
+        const countAbsentEl = document.getElementById('countAbsent');
+        const countOverriddenEl = document.getElementById('countOverridden');
+
+        let presentCount = 0;
+        let absentCount = 0;
+        let overriddenCount = 0;
+
+        attendees.forEach(att => {
+            const isPresent = att.time_in || att.time_out;
+            if (isPresent) {
+                presentCount++;
+            } else {
+                absentCount++;
+            }
+
+            if (att.is_overridden) {
+                overriddenCount++;
+            }
+        });
+
+        if (countPresentEl) countPresentEl.textContent = presentCount;
+        if (countAbsentEl) countAbsentEl.textContent = absentCount;
+        if (countOverriddenEl) countOverriddenEl.textContent = overriddenCount;
+
         if (attendees.length === 0) {
             attendeeListContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 1rem;">No confirmed attendees found for this class.</p>';
             return;

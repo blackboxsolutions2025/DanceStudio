@@ -72,6 +72,10 @@ app.get('/coach-schedule', (req, res) => {
     res.sendFile(path.join(__dirname, 'Pages', 'CoachSchedulePage', 'CoachSchedulePage.html'));
 });
 
+app.get('/booked-venue', (req, res) => {
+    res.sendFile(path.join(__dirname, 'Pages', 'BookedVenuePage', 'BookedVenuePage.html'));
+});
+
 // --- Database Connection Pool ---
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
@@ -1006,8 +1010,11 @@ app.post('/api/webhooks/paymongo', express.raw({ type: 'application/json' }), as
                                 return `${h}:${minutes} ${ampm}`;
                             };
 
-                            const venuePageUrl = `http://localhost:3000/VenueRentalPage/VenueRentalPage.html`;
+                            // Updated URL pointing directly to the BookedVenuePage
+                            const bookedVenueUrl = `http://localhost:3000/BookedVenuePage/BookedVenuePage.html`;
+                            const adminDashboardUrl = `http://localhost:3000/admin`;
 
+                            // 1. Send confirmation email to the customer/student
                             await transporter.sendMail({
                                 from: '"Rhythm & Soul Dance Studio" <no-reply@rhythmsoul.com>',
                                 to: rental.email,
@@ -1019,12 +1026,38 @@ app.post('/api/webhooks/paymongo', express.raw({ type: 'application/json' }), as
                                         <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Date:</strong> ${formattedDate}</p>
                                         <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Time:</strong> ${formatTimeStr(rental.start_time)} - ${formatTimeStr(rental.end_time)}</p>
                                         <div style="text-align: center; margin: 30px 0;">
-                                            <a href="${venuePageUrl}" style="display: inline-block; background-color: #10b981; color: #0f1015; padding: 12px 25px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 1rem;">View Venues</a>
+                                            <a href="${bookedVenueUrl}" style="display: inline-block; background-color: #10b981; color: #0f1015; padding: 12px 25px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 1rem;">View Booked Venues</a>
                                         </div>
                                         <p style="color: #a0a5b1; font-size: 0.85rem; border-top: 1px solid #2b2f3a; padding-top: 15px;">Thank you for booking with Rhythm & Soul Dance Studio!</p>
                                     </div>
                                 `
                             });
+
+                            // 2. Fetch all users with admin role and send them a notification email
+                            const [admins] = await pool.execute("SELECT email FROM users WHERE role = 'admin'");
+                            if (admins.length > 0) {
+                                const adminEmails = admins.map(admin => admin.email).join(',');
+
+                                await transporter.sendMail({
+                                    from: '"Rhythm & Soul Dance Studio" <no-reply@rhythmsoul.com>',
+                                    to: adminEmails,
+                                    subject: `New Venue Booking Confirmed: ${rental.venue_name} (${rental.name})`,
+                                    html: `
+                                        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f1015; color: #ffffff; padding: 30px; border-radius: 12px; max-width: 500px; margin: auto;">
+                                            <h2 style="color: #10b981; margin-bottom: 10px;">New Venue Booking Confirmed</h2>
+                                            <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;">A new venue rental has been successfully booked and paid for by <strong>${rental.name}</strong> (${rental.email}).</p>
+                                            <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Venue:</strong> ${rental.venue_name}</p>
+                                            <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Date:</strong> ${formattedDate}</p>
+                                            <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Time:</strong> ${formatTimeStr(rental.start_time)} - ${formatTimeStr(rental.end_time)}</p>
+                                            <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Total Amount:</strong> ₱${Number(rental.total_price).toFixed(2)}</p>
+                                            <div style="text-align: center; margin: 30px 0;">
+                                                <a href="${adminDashboardUrl}" style="display: inline-block; background-color: #10b981; color: #0f1015; padding: 12px 25px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 1rem;">View Admin Dashboard</a>
+                                            </div>
+                                            <p style="color: #a0a5b1; font-size: 0.85rem; border-top: 1px solid #2b2f3a; padding-top: 15px;">Rhythm & Soul Dance Studio Automated System</p>
+                                        </div>
+                                    `
+                                });
+                            }
                         }
                     }
                 }
@@ -1616,6 +1649,12 @@ app.post('/api/venue-rentals', authenticateToken, async (req, res) => {
             return res.status(400).json({ message: 'All rental fields are required.' });
         }
 
+        // --- Validate that the rental date & start time is not in the past ---
+        const rentalDateTime = new Date(`${rental_date}T${start_time}:00`);
+        if (rentalDateTime < new Date()) {
+            return res.status(400).json({ message: 'Error: Cannot book a venue for a date and time that has already passed.' });
+        }
+
         // Universal availability check before booking
         const conflict = await checkVenueConflict(venue_id, rental_date, start_time, end_time);
         if (conflict) {
@@ -1693,7 +1732,7 @@ app.get('/api/user/rentals', authenticateToken, async (req, res) => {
             `SELECT vr.*, v.name AS venue_name 
              FROM venue_rentals vr 
              JOIN venue v ON vr.venue_id = v.id 
-             WHERE vr.user_id = ? 
+             WHERE vr.user_id = ? AND vr.status = 'confirmed'
              ORDER BY vr.rental_date DESC, vr.start_time DESC`,
             [userId]
         );
@@ -1716,6 +1755,7 @@ app.get('/api/admin/venue-rentals', authenticateToken, async (req, res) => {
              FROM venue_rentals vr 
              JOIN venue v ON vr.venue_id = v.id 
              JOIN users u ON vr.user_id = u.id 
+             WHERE vr.status = 'confirmed'
              ORDER BY vr.rental_date DESC, vr.start_time DESC`
         );
         res.json(rentals);

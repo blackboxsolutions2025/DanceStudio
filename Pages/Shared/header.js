@@ -126,6 +126,7 @@
         if (userRole === 'student') {
             roleLinksHTML = `
                 <li><a href="../StudentClassSchedulePage/StudentClassSchedulePage.html" class="${currentPath.endsWith('StudentClassSchedulePage/StudentClassSchedulePage.html') ? 'active' : ''}"><i class="fa-solid fa-calendar-check"></i> My Class Schedule</a></li>
+                <li><a href="../BookedVenuePage/BookedVenuePage.html" class="${currentPath.includes('BookedVenuePage') ? 'active' : ''}"><i class="fa-solid fa-building-circle-check"></i> My Booked Venues</a></li>
                 <li><a href="../StudentAttendancePage/StudentAttendancePage.html" class="${currentPath.endsWith('StudentAttendancePage/StudentAttendancePage.html') ? 'active' : ''}"><i class="fa-solid fa-clipboard-user"></i> Attendance History</a></li>
             `;
         } else if (userRole === 'admin') {
@@ -134,6 +135,7 @@
                 <li><a href="../CoachListPage/CoachListPage.html" class="${currentPath.includes('CoachListPage') ? 'active' : ''}"><i class="fa-solid fa-chalkboard-user"></i> Instructor Management</a></li>
                 <li><a href="../ClassScheduleListPage/ClassScheduleListPage.html" class="${currentPath.includes('ClassScheduleListPage') ? 'active' : ''}"><i class="fa-solid fa-calendar-days"></i> Class Schedule Management</a></li>
                 <li><a href="../VenueListPage/VenueListPage.html" class="${currentPath.includes('VenueListPage') ? 'active' : ''}"><i class="fa-solid fa-building"></i> Venue Management</a></li>
+                <li><a href="../BookedVenuePage/BookedVenuePage.html" class="${currentPath.includes('BookedVenuePage') ? 'active' : ''}"><i class="fa-solid fa-building-circle-check"></i> Booked Venues</a></li>
             `;
         } else if (userRole === 'coach') {
             roleLinksHTML = `

@@ -205,52 +205,6 @@ body {
     box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
 }
 
-/* --- My Rentals Section --- */
-.my-rentals-section {
-    background-color: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 20px;
-    padding: 2rem;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-}
-
-.my-rentals-section h2 {
-    font-size: 1.25rem;
-    color: var(--green-primary);
-    margin-top: 0;
-    margin-bottom: 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 1rem;
-}
-
-.my-rentals-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 15px;
-}
-
-.rental-item-card {
-    background: var(--bg-dark);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 1rem;
-    font-size: 0.9rem;
-    color: var(--text-muted);
-}
-
-.rental-item-card .venue-title {
-    font-weight: 700;
-    color: var(--green-primary);
-    margin-bottom: 6px;
-    font-size: 1.05rem;
-}
-
-.badge-pending { color: #facc15; font-weight: 600; }
-.badge-confirmed { color: #34d399; font-weight: 600; }
-.badge-cancelled { color: #f87171; font-weight: 600; }
 .empty-text { color: var(--text-muted); }
 
 @media (max-width: 768px) {

@@ -505,7 +505,7 @@ body {
 
 .card-content-area {
     padding: 0rem 1.25rem 1.25rem 1.25rem;
-    margin-top: -1.25rem;
+    margin-top: -5.25rem;
     display: flex;
     flex-direction: column;
     gap: 0.3rem;

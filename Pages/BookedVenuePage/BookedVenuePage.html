@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">My Booked Venues - Rhythm & Soul Dance Studio</title>
+    <link rel="icon" type="image/x-icon" href="../Shared/favicon.ico">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../Shared/header.css">
+    <link rel="stylesheet" href="BookedVenuePage.css">
+</head>
+<body>
+    <!-- Global Header Placeholder -->
+    <div id="header-placeholder"></div>
+
+    <main class="booked-venue-container">
+        <div class="page-header-section">
+            <div class="header-titles">
+                <h1 id="pageHeading"><i class="fa-solid fa-building-circle-check"></i> My Booked Venues</h1>
+                <p id="pageSubheading">View and manage your confirmed private venue rentals and booking history.</p>
+            </div>
+            <a href="../VenueRentalPage/VenueRentalPage.html" id="bookNewBtn" class="book-new-btn">
+                <i class="fa-solid fa-plus"></i> Book New Venue
+            </a>
+        </div>
+
+        <!-- Unified Toolbar Card (Filters Summary + Filter Button) -->
+        <div class="schedule-toolbar-card">
+            <div class="toolbar-filters-summary">
+                <div class="summary-item">
+                    <span class="summary-label"><i class="fas fa-calendar-alt"></i> Date</span>
+                    <span id="summaryDate" class="summary-val">Upcoming Bookings</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label"><i class="fas fa-building"></i> Venue</span>
+                    <span id="summaryVenue" class="summary-val">All Venues</span>
+                </div>
+            </div>
+
+            <button id="openFilterModal" class="filter-trigger-btn-green">
+                <i class="fas fa-filter"></i> Filter Bookings 
+                <span id="activeFiltersBadge" class="filter-badge" style="display: none;">Active</span>
+            </button>
+        </div>
+
+        <!-- Rentals Content Section -->
+        <div class="rentals-content-wrapper">
+            <div id="loadingIndicator" class="loading-state">
+                <i class="fa-solid fa-spinner fa-spin"></i> Loading venue bookings...
+            </div>
+            
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <i class="fa-solid fa-building-slash"></i>
+                <h3 id="emptyStateTitle">No Venue Bookings Found</h3>
+                <p id="emptyStateDesc">You don't have any venue bookings matching this filter criteria. Explore our spaces and book your session today!</p>
+                <a href="../VenueRentalPage/VenueRentalPage.html" id="emptyStateBtn" class="explore-venues-btn">Explore Venues</a>
+            </div>
+
+            <div id="rentalsGrid" class="rentals-grid">
+                <!-- Dynamically populated venue rental cards -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Filter Modal Dialog -->
+    <div id="filterModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-filter"></i> Filter Venue Bookings</h3>
+                <button id="closeFilterModal" class="modal-close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="filter-group">
+                    <label><i class="fas fa-calendar-alt"></i> Date Range</label>
+                    <select id="filterDateRangeMode" class="filter-input">
+                        <option value="upcoming">Upcoming Bookings</option>
+                        <option value="past">Past Bookings</option>
+                        <option value="all">All Bookings</option>
+                        <option value="today">This Day (Today)</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                </div>
+
+                <div class="filter-group custom-date-group" id="customDateContainer" style="display: none;">
+                    <label><i class="fas fa-calendar-day"></i> From & To Date</label>
+                    <div class="custom-date-inputs">
+                        <input type="date" id="filterStartDate" class="filter-input">
+                        <input type="date" id="filterEndDate" class="filter-input">
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <label><i class="fas fa-building"></i> Venue</label>
+                    <select id="filterVenue" class="filter-input">
+                        <option value="">All Venues</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="resetModalFilters" class="btn btn-secondary">Reset</button>
+                <button id="applyModalFilters" class="btn btn-primary">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../Shared/error-modal.js"></script>
+    <script src="../Shared/header.js"></script>
+    <script src="BookedVenuePage.js"></script>
+</body>
+</html>
