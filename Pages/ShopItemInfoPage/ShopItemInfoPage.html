@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Details - Rhythm & Soul</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../Shared/header.css">
+    <link rel="stylesheet" href="ShopItemInfoPage.css">
+</head>
+<body>
+    <!-- Global Header Placeholder -->
+    <div id="header-placeholder"></div>
+
+    <main class="item-info-container" id="itemInfoContainer">
+        <!-- Dynamically loaded product info -->
+        <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Loading product details...</div>
+    </main>
+
+    <!-- Shopee-Style Sticky Bottom Bar -->
+    <div class="sticky-bottom-bar" id="stickyBottomBar" style="display: none;">
+        <div class="sticky-bar-content">
+            <button class="btn-add-cart-sticky" onclick="openVariantModal('cart')">
+                <i class="fa-solid fa-cart-shopping"></i> Add to Cart
+            </button>
+            <button class="btn-checkout-sticky" onclick="openVariantModal('buy')">
+                <i class="fa-solid fa-bolt"></i> Buy Now
+            </button>
+        </div>
+    </div>
+
+    <!-- Shopee-Style Bottom Slide-Up Modal -->
+    <div class="shop-modal-overlay" id="shopModalOverlay" onclick="closeVariantModal(event)">
+        <div class="shop-modal-content" onclick="event.stopPropagation()">
+            <button class="modal-close-btn" onclick="closeVariantModal()"><i class="fa-solid fa-xmark"></i></button>
+            
+            <!-- Modal Header: Image, Price, Name -->
+            <div class="modal-product-header">
+                <div class="modal-img-wrapper">
+                    <img id="modalImg" src="" alt="Product Variant">
+                </div>
+                <div class="modal-header-info">
+                    <h3 id="modalProductName">Product Name</h3>
+                    <div class="modal-price" id="modalPriceDisplay">₱0.00</div>
+                    <div class="modal-stock" id="modalStockDisplay">Stock: 0</div>
+                </div>
+            </div>
+
+            <div class="modal-divider"></div>
+
+            <!-- Dynamic Variant Attributes Container (Color, Size, etc.) -->
+            <div class="modal-attributes-container" id="modalAttributesContainer">
+                <!-- Dynamically injected attribute groups -->
+            </div>
+
+            <!-- Quantity Selector -->
+            <div class="modal-qty-section">
+                <span class="section-title">Quantity</span>
+                <div class="quantity-selector">
+                    <button class="qty-btn" onclick="updateModalQty(-1)"><i class="fa-solid fa-minus"></i></button>
+                    <input type="text" id="modalQtyInput" class="qty-input" value="1" readonly>
+                    <button class="qty-btn" onclick="updateModalQty(1)"><i class="fa-solid fa-plus"></i></button>
+                </div>
+            </div>
+
+            <!-- Modal Action Button -->
+            <button class="modal-action-confirm-btn" id="modalConfirmBtn" onclick="confirmModalAction()">
+                Confirm
+            </button>
+        </div>
+    </div>
+
+    <script src="../Shared/header.js"></script>
+    <script src="ShopItemInfoPage.js"></script>
+</body>
+</html>

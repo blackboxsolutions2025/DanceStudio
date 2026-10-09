@@ -177,7 +177,7 @@
                 <li><a href="../LandingPage/LandingPage.html" class="${currentPath.includes('LandingPage') ? 'active' : ''}"><i class="fa-solid fa-house"></i> Home</a></li>
                 <li><a href="../ClassSchedulePage/ClassSchedulePage.html" class="${currentPath.endsWith('ClassSchedulePage/ClassSchedulePage.html') ? 'active' : ''}"><i class="fa-solid fa-calendar-alt"></i> Class Schedule</a></li>
                 <li><a href="../VenueRentalPage/VenueRentalPage.html" class="${currentPath.includes('VenueRentalPage') ? 'active' : ''}"><i class="fa-solid fa-building"></i> Venue Rental</a></li>
-                <li><a href="../ProductListPage/ProductListPage.html" class="${currentPath.includes('ProductListPage') ? 'active' : ''}"><i class="fa-solid fa-store"></i> Shop</a></li>
+                <li><a href="../ShopListPage/ShopListPage.html" class="${currentPath.includes('ShopListPage') ? 'active' : ''}"><i class="fa-solid fa-store"></i> Shop</a></li>
                 <li><a href="../LandingPage/LandingPage.html#about" class="${currentPath.includes('#about') ? 'active' : ''}"><i class="fa-solid fa-users"></i> About</a></li>
                 <li><a href="../LandingPage/LandingPage.html#contact" class="${currentPath.includes('#contact') ? 'active' : ''}"><i class="fa-solid fa-envelope"></i> Contact</a></li>
                 ${roleSpecificSectionHTML}

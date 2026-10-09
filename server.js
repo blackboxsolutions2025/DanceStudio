@@ -76,6 +76,14 @@ app.get('/booked-venue', (req, res) => {
     res.sendFile(path.join(__dirname, 'Pages', 'BookedVenuePage', 'BookedVenuePage.html'));
 });
 
+app.get('/shop', (req, res) => {
+    res.sendFile(path.join(__dirname, 'Pages', 'ShopListPage', 'ShopListPage.html'));
+});
+
+app.get('/shop-item', (req, res) => {
+    res.sendFile(path.join(__dirname, 'Pages', 'ShopItemInfoPage', 'ShopItemInfoPage.html'));
+});
+
 // --- Database Connection Pool ---
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
@@ -2226,7 +2234,11 @@ app.get('/api/shop/products', async (req, res) => {
 
             const galleryImages = productImages
                 .filter(img => img.product_id === p.id)
-                .map(img => img.image_path);
+                .map(img => {
+                    if (!img.image_path) return null;
+                    return img.image_path.startsWith('http') ? img.image_path : `${baseUrl}/productimages/${img.image_path}`;
+                })
+                .filter(Boolean);
 
             return {
                 ...p,

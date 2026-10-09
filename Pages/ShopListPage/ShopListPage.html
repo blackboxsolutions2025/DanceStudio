@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shop - Rhythm & Soul</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../Shared/header.css">
+    <link rel="stylesheet" href="ShopListPage.css">
+</head>
+<body>
+    <!-- Global Header Placeholder -->
+    <div id="header-placeholder"></div>
+
+    <main class="shop-container">
+        <div class="shop-header-banner">
+            <h1><i class="fa-solid fa-bag-shopping"></i> Studio Shop</h1>
+            <p>Explore exclusive dance merchandise, apparel, and gear.</p>
+        </div>
+
+        <!-- Unified Toolbar Card (Filters Summary + Filter Button) -->
+        <div class="shop-toolbar-card">
+            <div class="toolbar-filters-summary">
+                <div class="summary-item">
+                    <span class="summary-label"><i class="fas fa-tags"></i> Category</span>
+                    <span id="summaryCategory" class="summary-val">All Categories</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label"><i class="fas fa-copyright"></i> Brand</span>
+                    <span id="summaryBrand" class="summary-val">All Brands</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label"><i class="fas fa-sort-amount-down"></i> Sort By</span>
+                    <span id="summarySort" class="summary-val">Newest</span>
+                </div>
+            </div>
+
+            <button id="openFilterModal" class="filter-trigger-btn-green">
+                <i class="fas fa-filter"></i> Filter Products 
+                <span id="activeFiltersBadge" class="filter-badge" style="display: none;">Active</span>
+            </button>
+        </div>
+
+        <!-- Product Grid Catalog -->
+        <div class="product-grid" id="productGrid">
+            <!-- Dynamic Product Cards will be injected here -->
+        </div>
+
+        <!-- No Products Found Message -->
+        <div id="noProductsMessage" class="no-products" style="display: none; text-align: center; padding: 40px; grid-column: 1/-1;">
+            <i class="fas fa-box-open" style="font-size: 3rem; color: #a0a5b1; margin-bottom: 1rem;"></i>
+            <h3 style="font-size: 1.4rem; margin-bottom: 0.5rem;">No products found</h3>
+            <p style="color: #a0a5b1; font-size: 0.95rem;">No items match your filter criteria. Try adjusting your filters!</p>
+        </div>
+    </main>
+
+    <!-- Filter Modal Dialog -->
+    <div id="filterModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-filter"></i> Filter Shop Catalog</h3>
+                <button id="closeFilterModal" class="modal-close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="filter-group">
+                    <label><i class="fas fa-tags"></i> Category</label>
+                    <select id="filterCategory" class="filter-input">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label><i class="fas fa-copyright"></i> Brand</label>
+                    <select id="filterBrand" class="filter-input">
+                        <option value="">All Brands</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label><i class="fas fa-sort-amount-down"></i> Sort By</label>
+                    <select id="filterSort" class="filter-input">
+                        <option value="newest">Newest First</option>
+                        <option value="price-asc">Price: Low to High</option>
+                        <option value="price-desc">Price: High to Low</option>
+                        <option value="name-asc">Name: A to Z</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="resetModalFilters" class="btn btn-secondary">Reset</button>
+                <button id="applyModalFilters" class="btn btn-primary">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../Shared/header.js"></script>
+    <script src="ShopListPage.js"></script>
+</body>
+</html>
