@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Builder - Rhythm & Soul</title>
+    <link rel="stylesheet" href="ProductBuilderPage.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div id="header-placeholder"></div>
+
+    <div class="app-container">
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="page-title">
+                    <h1>Product Builder</h1>
+                    <p>Register a new base product and configure its physical variants and attribute specifications.</p>
+                </div>
+                <div class="header-actions">
+                    <a href="../ProductListPage/ProductListPage.html" class="btn-secondary">
+                        <i class="fa-solid fa-arrow-left"></i> Back to Catalog
+                    </a>
+                </div>
+            </header>
+
+            <div class="content-body">
+                <form id="productForm">
+                    <!-- Base Product Details Card -->
+                    <div class="form-card">
+                        <h2>1. Base Product Information</h2>
+                        <div class="form-grid">
+                            <div class="input-group">
+                                <label for="productName">Product Name *</label>
+                                <input type="text" id="productName" required placeholder="e.g., Studio Logo Hoodie">
+                            </div>
+                            <div class="input-group">
+                                <label for="categoryId">Category *</label>
+                                <select id="categoryId" required>
+                                    <option value="">Select Category...</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label for="brandId">Brand *</label>
+                                <select id="brandId" required>
+                                    <option value="">Select Brand...</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label for="basePrice">Base Retail Price (₱) *</label>
+                                <input type="number" id="basePrice" step="0.01" required placeholder="500.00">
+                            </div>
+                        </div>
+                        <div class="input-group full-width" style="margin-top: 16px;">
+                            <label for="description">Internal Description / Notes</label>
+                            <textarea id="description" rows="3" placeholder="Optional notes about this product line..."></textarea>
+                        </div>
+                        <div class="input-group full-width" style="margin-top: 16px;">
+                            <label>Main Product Image *</label>
+                            <div id="mainImagePreviewContainer" style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px;"></div>
+                            <input type="file" id="productImage" accept="image/*" required>
+                        </div>
+
+                        <div class="input-group full-width" style="margin-top: 16px;">
+                            <label>Product Sub-Images (Gallery)</label>
+                            <div id="galleryManagerContainer" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;"></div>
+                            <button type="button" class="btn-secondary" id="triggerGalleryBtn" style="width: fit-content;">
+                                <i class="fa-solid fa-plus"></i> Add Sub-Images
+                            </button>
+                            <input type="file" id="productGallery" accept="image/*" multiple style="display: none;">
+                            <small style="color: var(--text-muted); margin-top: 4px;">Upload multiple images to showcase your product from different angles.</small>
+                        </div>
+                    </div>
+
+                    <!-- Variant Manager Card -->
+                    <div class="form-card">
+                        <div class="card-header-flex">
+                            <div>
+                                <h2>2. Physical Variants & Attributes</h2>
+                                <p class="subtitle">Add each scannable version and configure dynamic attribute specs</p>
+                            </div>
+                            <button type="button" class="btn-secondary" id="addVariantBtn">
+                                <i class="fa-solid fa-plus"></i> Add Variant Row
+                            </button>
+                        </div>
+
+                        <div id="variantsContainer" class="variants-container">
+                            <!-- Dynamic variant rows injected here -->
+                        </div>
+                    </div>
+
+                    <div id="formError" class="error-message"></div>
+
+                    <!-- Action Bar -->
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary" id="saveProductBtn">
+                            <i class="fa-solid fa-floppy-disk"></i> Save Complete Product
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay">
+        <i class="fa-solid fa-spinner loading-spinner"></i>
+        <div class="loading-text" id="loadingText">Processing product data...</div>
+    </div>
+
+    <script src="../Shared/header.js"></script>
+    <script src="../Shared/success-modal.js"></script>
+    <script src="../Shared/error-modal.js"></script>
+    <script src="../Shared/confirmation-modal.js"></script>
+    <script src="ProductBuilderPage.js"></script>
+</body>
+</html>

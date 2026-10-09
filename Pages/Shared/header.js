@@ -136,6 +136,7 @@
                 <li><a href="../ClassScheduleListPage/ClassScheduleListPage.html" class="${currentPath.includes('ClassScheduleListPage') ? 'active' : ''}"><i class="fa-solid fa-calendar-days"></i> Class Schedule Management</a></li>
                 <li><a href="../VenueListPage/VenueListPage.html" class="${currentPath.includes('VenueListPage') ? 'active' : ''}"><i class="fa-solid fa-building"></i> Venue Management</a></li>
                 <li><a href="../BookedVenuePage/BookedVenuePage.html" class="${currentPath.includes('BookedVenuePage') ? 'active' : ''}"><i class="fa-solid fa-building-circle-check"></i> Booked Venues</a></li>
+                <li><a href="../ProductListPage/ProductListPage.html" class="${currentPath.includes('ProductListPage') ? 'active' : ''}"><i class="fa-solid fa-box"></i> Product Management</a></li>
             `;
         } else if (userRole === 'coach') {
             roleLinksHTML = `
@@ -176,7 +177,7 @@
                 <li><a href="../LandingPage/LandingPage.html" class="${currentPath.includes('LandingPage') ? 'active' : ''}"><i class="fa-solid fa-house"></i> Home</a></li>
                 <li><a href="../ClassSchedulePage/ClassSchedulePage.html" class="${currentPath.endsWith('ClassSchedulePage/ClassSchedulePage.html') ? 'active' : ''}"><i class="fa-solid fa-calendar-alt"></i> Class Schedule</a></li>
                 <li><a href="../VenueRentalPage/VenueRentalPage.html" class="${currentPath.includes('VenueRentalPage') ? 'active' : ''}"><i class="fa-solid fa-building"></i> Venue Rental</a></li>
-                <li><a href="../Shop/Shop.html" class="${currentPath.includes('Shop') ? 'active' : ''}"><i class="fa-solid fa-store"></i> Shop</a></li>
+                <li><a href="../ProductListPage/ProductListPage.html" class="${currentPath.includes('ProductListPage') ? 'active' : ''}"><i class="fa-solid fa-store"></i> Shop</a></li>
                 <li><a href="../LandingPage/LandingPage.html#about" class="${currentPath.includes('#about') ? 'active' : ''}"><i class="fa-solid fa-users"></i> About</a></li>
                 <li><a href="../LandingPage/LandingPage.html#contact" class="${currentPath.includes('#contact') ? 'active' : ''}"><i class="fa-solid fa-envelope"></i> Contact</a></li>
                 ${roleSpecificSectionHTML}

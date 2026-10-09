@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalog Reference Data - Admin Dashboard</title>
+    <link rel="stylesheet" href="ReferenceDataPage.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div id="header-placeholder"></div>
+
+    <div class="app-container">
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="page-title">
+                    <h1>Catalog Reference Data</h1>
+                    <p>Manage product classifications, brands, and attribute specifications.</p>
+                </div>
+                <div class="header-actions">
+                    <a href="../ProductListPage/ProductListPage.html" class="btn-secondary" title="Back to Products">
+                        <i class="fa-solid fa-arrow-left"></i> Back to Products
+                    </a>
+                </div>
+            </header>
+
+            <div class="content-body">
+                <!-- Tab Controls -->
+                <div class="settings-tabs">
+                    <button class="tab-btn active" data-tab="categoriesTab">
+                        <i class="fa-solid fa-list"></i> Categories
+                    </button>
+                    <button class="tab-btn" data-tab="brandsTab">
+                        <i class="fa-solid fa-copyright"></i> Brands
+                    </button>
+                    <button class="tab-btn" data-tab="attributesTab">
+                        <i class="fa-solid fa-sliders"></i> Attributes
+                    </button>
+                </div>
+
+                <!-- CATEGORIES TAB PANEL -->
+                <div id="categoriesTab" class="tab-content active">
+                    <div class="settings-grid">
+                        <div class="form-card">
+                            <h2 id="categoryFormTitle">Add Category</h2>
+                            <form id="categoryForm">
+                                <input type="hidden" id="editingCategoryId" value="">
+                                <div class="input-group">
+                                    <label for="categoryName">Category Name *</label>
+                                    <input type="text" id="categoryName" required placeholder="e.g., Apparel, Equipment">
+                                </div>
+                                <button type="submit" id="categorySubmitBtn" class="btn-primary"><i class="fa-solid fa-plus"></i> Add Category</button>
+                                <button type="button" id="categoryCancelBtn" class="btn-secondary" style="display: none; margin-top: 8px; width: 100%; justify-content: center;">Cancel</button>
+                            </form>
+                        </div>
+                        <div class="table-card">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Category Name</th>
+                                        <th style="text-align: right;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="categoriesTableBody">
+                                    <tr><td colspan="3" class="loading-text" style="text-align: center; color: var(--text-muted); padding: 20px;">Loading categories...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BRANDS TAB PANEL -->
+                <div id="brandsTab" class="tab-content">
+                    <div class="settings-grid">
+                        <div class="form-card">
+                            <h2 id="brandFormTitle">Add Brand</h2>
+                            <form id="brandForm">
+                                <input type="hidden" id="editingBrandId" value="">
+                                <div class="input-group">
+                                    <label for="brandName">Brand Name *</label>
+                                    <input type="text" id="brandName" required placeholder="e.g., Rhythm & Soul">
+                                </div>
+                                <button type="submit" id="brandSubmitBtn" class="btn-primary"><i class="fa-solid fa-plus"></i> Add Brand</button>
+                                <button type="button" id="brandCancelBtn" class="btn-secondary" style="display: none; margin-top: 8px; width: 100%; justify-content: center;">Cancel</button>
+                            </form>
+                        </div>
+                        <div class="table-card">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Brand Name</th>
+                                        <th style="text-align: right;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="brandsTableBody">
+                                    <tr><td colspan="3" class="loading-text" style="text-align: center; color: var(--text-muted); padding: 20px;">Loading brands...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ATTRIBUTES TAB PANEL -->
+                <div id="attributesTab" class="tab-content">
+                    <div class="settings-grid">
+                        <div class="form-card">
+                            <h2 id="attributeFormTitle">Add Attribute Specification</h2>
+                            <form id="attributeForm">
+                                <input type="hidden" id="editingAttributeId" value="">
+                                <div class="input-group">
+                                    <label for="attributeName">Attribute Name *</label>
+                                    <input type="text" id="attributeName" required placeholder="e.g., Size, Color">
+                                </div>
+                                <button type="submit" id="attributeSubmitBtn" class="btn-primary"><i class="fa-solid fa-plus"></i> Add Attribute</button>
+                                <button type="button" id="attributeCancelBtn" class="btn-secondary" style="display: none; margin-top: 8px; width: 100%; justify-content: center;">Cancel</button>
+                            </form>
+                        </div>
+                        <div class="table-card">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Attribute Name</th>
+                                        <th style="text-align: right;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="attributesTableBody">
+                                    <tr><td colspan="3" class="loading-text" style="text-align: center; color: var(--text-muted); padding: 20px;">Loading attributes...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script src="../Shared/header.js"></script>
+    <script src="../Shared/error-modal.js"></script>
+    <script src="../Shared/success-modal.js"></script>
+    <script src="../Shared/confirmation-modal.js"></script>
+    <script src="ReferenceDataPage.js"></script>
+</body>
+</html>

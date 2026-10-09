@@ -2084,12 +2084,519 @@ app.get('/api/venue-rentals/schedule', async (req, res) => {
     }
 });
 
+// --- Categories API ---
+app.get('/api/categories', async (req, res) => {
+    try {
+        const [rows] = await pool.execute('SELECT * FROM categories ORDER BY name ASC');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching categories.' });
+    }
+});
 
+app.post('/api/categories', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin access required.' });
+        const { name } = req.body;
+        if (!name) return res.status(400).json({ message: 'Category name is required.' });
+        
+        await pool.execute('INSERT INTO categories (name) VALUES (?)', [name]);
+        res.status(201).json({ message: 'Category added successfully.' });
+    } catch (err) {
+        if (err.code === 'ER_DUP_ENTRY') return res.status(400).json({ message: 'Category already exists.' });
+        res.status(500).json({ message: 'Server error saving category.' });
+    }
+});
 
+app.put('/api/categories/:id', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin access required.' });
+        const { name } = req.body;
+        await pool.execute('UPDATE categories SET name = ? WHERE id = ?', [name, req.params.id]);
+        res.json({ message: 'Category updated successfully.' });
+    } catch (err) {
+        res.status(500).json({ message: 'Server error updating category.' });
+    }
+});
 
+// --- Brands API ---
+app.get('/api/brands', async (req, res) => {
+    try {
+        const [rows] = await pool.execute('SELECT * FROM brands ORDER BY name ASC');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching brands.' });
+    }
+});
 
+app.post('/api/brands', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin access required.' });
+        const { name } = req.body;
+        if (!name) return res.status(400).json({ message: 'Brand name is required.' });
 
+        await pool.execute('INSERT INTO brands (name) VALUES (?)', [name]);
+        res.status(201).json({ message: 'Brand added successfully.' });
+    } catch (err) {
+        if (err.code === 'ER_DUP_ENTRY') return res.status(400).json({ message: 'Brand already exists.' });
+        res.status(500).json({ message: 'Server error saving brand.' });
+    }
+});
 
+app.put('/api/brands/:id', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin access required.' });
+        const { name } = req.body;
+        await pool.execute('UPDATE brands SET name = ? WHERE id = ?', [name, req.params.id]);
+        res.json({ message: 'Brand updated successfully.' });
+    } catch (err) {
+        res.status(500).json({ message: 'Server error updating brand.' });
+    }
+});
+
+// --- Attributes API ---
+app.get('/api/attributes', async (req, res) => {
+    try {
+        const [rows] = await pool.execute('SELECT * FROM attributes ORDER BY name ASC');
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching attributes.' });
+    }
+});
+
+app.post('/api/attributes', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin access required.' });
+        const { name } = req.body;
+        if (!name) return res.status(400).json({ message: 'Attribute name is required.' });
+
+        await pool.execute('INSERT INTO attributes (name) VALUES (?)', [name]);
+        res.status(201).json({ message: 'Attribute added successfully.' });
+    } catch (err) {
+        if (err.code === 'ER_DUP_ENTRY') return res.status(400).json({ message: 'Attribute already exists.' });
+        res.status(500).json({ message: 'Server error saving attribute.' });
+    }
+});
+
+app.put('/api/attributes/:id', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin access required.' });
+        const { name } = req.body;
+        await pool.execute('UPDATE attributes SET name = ? WHERE id = ?', [name, req.params.id]);
+        res.json({ message: 'Attribute updated successfully.' });
+    } catch (err) {
+        res.status(500).json({ message: 'Server error updating attribute.' });
+    }
+});
+
+// --- Get All Products with New Schema Variants & Attributes ---
+app.get('/api/shop/products', async (req, res) => {
+    try {
+        const [products] = await pool.execute(`
+            SELECT p.*, c.name AS category_name, b.name AS brand_name 
+            FROM products p 
+            LEFT JOIN categories c ON p.category_id = c.id 
+            LEFT JOIN brands b ON p.brand_id = b.id 
+            WHERE p.is_active = 1 
+            ORDER BY p.created_at DESC
+        `);
+
+        const [variants] = await pool.execute('SELECT * FROM variants');
+        const [variantValues] = await pool.execute(`
+            SELECT vv.variant_id, a.name AS attribute_name, vv.value 
+            FROM variant_values vv
+            JOIN attributes a ON vv.attribute_id = a.id
+        `);
+        const [productImages] = await pool.execute('SELECT * FROM product_images ORDER BY display_order ASC');
+
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+        const formattedProducts = products.map(p => {
+            const pVariants = variants
+                .filter(v => v.product_id === p.id)
+                .map(v => {
+                    const attrs = variantValues.filter(vv => vv.variant_id === v.id);
+                    return {
+                        ...v,
+                        // Normalize variant image URL so it resolves correctly on the frontend
+                        image: v.image ? (v.image.startsWith('http') ? v.image : `${baseUrl}/productimages/${v.image}`) : null,
+                        attributes: attrs
+                    };
+                });
+
+            const galleryImages = productImages
+                .filter(img => img.product_id === p.id)
+                .map(img => img.image_path);
+
+            return {
+                ...p,
+                main_image: p.main_image ? (p.main_image.startsWith('http') ? p.main_image : `${baseUrl}/productimages/${p.main_image}`) : null,
+                gallery_images: galleryImages,
+                variants: pVariants
+            };
+        });
+
+        res.json(formattedProducts);
+    } catch (err) {
+        console.error('Fetch Products Error:', err);
+        res.status(500).json({ message: 'Error fetching products catalog.' });
+    }
+});
+
+// --- Configure Multer Storage for Product Images (Folder: productimages) ---
+const productImgStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadDir = path.join(__dirname, 'public', 'productimages');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        cb(null, `product-${uniqueSuffix}${ext}`);
+    }
+});
+
+const uploadProductImage = multer({
+    storage: productImgStorage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed!'), false);
+        }
+    }
+});
+
+app.use('/productimages', express.static(path.join(__dirname, 'public', 'productimages')));
+
+// --- Admin: Create Product with Variants and Attributes ---
+app.post('/api/shop/products', authenticateToken, uploadProductImage.any(), async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Access denied. Administrator privileges required.' });
+        }
+
+        const { title, description, category_id, brand_id, base_price, variants } = req.body;
+        if (!title || !base_price) {
+            return res.status(400).json({ message: 'Product title and base price are required.' });
+        }
+
+        await connection.beginTransaction();
+
+        const files = req.files || [];
+        const mainImageFile = files.find(f => f.fieldname === 'productImage');
+        const mainImagePath = mainImageFile ? mainImageFile.filename : null;
+
+        const [productResult] = await connection.execute(
+            `INSERT INTO products (title, description, category_id, brand_id, base_price, main_image) 
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [title, description || null, category_id || null, brand_id || null, base_price, mainImagePath]
+        );
+
+        const productId = productResult.insertId;
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+        // 1. Save Product Gallery Sub-images
+        const galleryFiles = files.filter(f => f.fieldname === 'productGallery');
+        for (let i = 0; i < galleryFiles.length; i++) {
+            const galleryPath = `${baseUrl}/productimages/${galleryFiles[i].filename}`;
+            await connection.execute(
+                `INSERT INTO product_images (product_id, image_path, display_order) VALUES (?, ?, ?)`,
+                [productId, galleryPath, i]
+            );
+        }
+
+        const parsedVariants = variants ? JSON.parse(variants) : [];
+
+        // 2. Save Variants & Individual Variant Images
+        for (let i = 0; i < parsedVariants.length; i++) {
+            const v = parsedVariants[i];
+            
+            const variantImgFile = files.find(f => f.fieldname === `variantImage_${i}`);
+            const variantImagePath = variantImgFile ? `${baseUrl}/productimages/${variantImgFile.filename}` : null;
+
+            const [variantResult] = await connection.execute(
+                `INSERT INTO variants (product_id, sku, stock_quantity, price_override, image) 
+                 VALUES (?, ?, ?, ?, ?)`,
+                [
+                    productId, 
+                    v.sku, 
+                    v.stock_quantity !== undefined ? v.stock_quantity : 0, 
+                    v.price_override !== undefined ? v.price_override : null,
+                    variantImagePath
+                ]
+            );
+
+            const variantId = variantResult.insertId;
+
+            if (v.attributes && Array.isArray(v.attributes)) {
+                for (const attr of v.attributes) {
+                    if (attr.attributeId && attr.value) {
+                        await connection.execute(
+                            `INSERT INTO variant_values (variant_id, attribute_id, value) 
+                             VALUES (?, ?, ?)`,
+                            [variantId, attr.attributeId, attr.value]
+                        );
+                    }
+                }
+            }
+        }
+
+        await connection.commit();
+        res.status(201).json({ message: 'Product successfully built and saved!' });
+    } catch (err) {
+        await connection.rollback();
+        console.error('Create Product Error:', err);
+        if (err.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ message: 'Duplicate SKU detected. Each variant must have a unique SKU.' });
+        }
+        res.status(500).json({ message: 'Server error while creating product.' });
+    } finally {
+        connection.release();
+    }
+});
+
+// --- Price Suggestions Endpoint ---
+app.get('/api/variants/price-suggestions', authenticateToken, async (req, res) => {
+    try {
+        const { categoryId, brandId } = req.query;
+        let query = `SELECT DISTINCT price_override AS Price FROM variants v JOIN products p ON v.product_id = p.id WHERE v.price_override IS NOT NULL`;
+        let params = [];
+        if (categoryId) {
+            query += ` AND p.category_id = ?`;
+            params.push(categoryId);
+        }
+        if (brandId) {
+            query += ` AND p.brand_id = ?`;
+            params.push(brandId);
+        }
+        query += ` LIMIT 10`;
+        const [rows] = await pool.execute(query, params);
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching price suggestions.' });
+    }
+});
+
+// --- Admin: Update Product with Variants and Attributes ---
+app.put('/api/shop/products/:id', authenticateToken, uploadProductImage.any(), async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Access denied. Administrator privileges required.' });
+        }
+
+        const productId = req.params.id;
+        const { title, description, category_id, brand_id, base_price, variants, galleryMeta } = req.body;
+        if (!title || !base_price) {
+            return res.status(400).json({ message: 'Product title and base price are required.' });
+        }
+
+        await connection.beginTransaction();
+
+        const [existing] = await connection.execute('SELECT id, main_image FROM products WHERE id = ?', [productId]);
+        if (existing.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ message: 'Product not found.' });
+        }
+
+        const files = req.files || [];
+        const mainImageFile = files.find(f => f.fieldname === 'productImage');
+        let mainImagePath = existing[0].main_image;
+
+        if (mainImageFile) {
+            mainImagePath = mainImageFile.filename;
+            if (existing[0].main_image) {
+                const oldPath = path.join(__dirname, 'public', 'productimages', existing[0].main_image);
+                if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+            }
+        }
+
+        await connection.execute(
+            `UPDATE products SET title = ?, description = ?, category_id = ?, brand_id = ?, base_price = ?, main_image = ? WHERE id = ?`,
+            [title, description || null, category_id || null, brand_id || null, base_price, mainImagePath, productId]
+        );
+
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+        // --- Handle Gallery Sub-Images with galleryMeta ---
+        const [oldGalleryImages] = await connection.execute('SELECT image_path FROM product_images WHERE product_id = ?', [productId]);
+        await connection.execute('DELETE FROM product_images WHERE product_id = ?', [productId]);
+
+        const galleryFiles = files.filter(f => f.fieldname === 'productGallery');
+        const parsedGalleryMeta = galleryMeta ? JSON.parse(galleryMeta) : [];
+        const keptGalleryUrls = new Set(parsedGalleryMeta.filter(m => m.type === 'existing').map(m => m.url));
+
+        // Physically delete removed gallery images from disk
+        for (const oldImg of oldGalleryImages) {
+            if (!keptGalleryUrls.has(oldImg.image_path)) {
+                if (oldImg.image_path && oldImg.image_path.includes('/productimages/')) {
+                    const filename = oldImg.image_path.split('/productimages/').pop();
+                    const filePath = path.join(__dirname, 'public', 'productimages', filename);
+                    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                }
+            }
+        }
+
+        let fileIndex = 0;
+        for (let i = 0; i < parsedGalleryMeta.length; i++) {
+            const meta = parsedGalleryMeta[i];
+            let imagePath = '';
+
+            if (meta.type === 'new') {
+                if (galleryFiles[fileIndex]) {
+                    imagePath = `${baseUrl}/productimages/${galleryFiles[fileIndex].filename}`;
+                    fileIndex++;
+                }
+            } else if (meta.type === 'existing') {
+                imagePath = meta.url;
+            }
+
+            if (imagePath) {
+                await connection.execute(
+                    `INSERT INTO product_images (product_id, image_path, display_order) VALUES (?, ?, ?)`,
+                    [productId, imagePath, i]
+                );
+            }
+        }
+
+        // --- Refresh Variants ---
+        const [oldVariants] = await connection.execute('SELECT image FROM variants WHERE product_id = ?', [productId]);
+        await connection.execute('DELETE FROM variants WHERE product_id = ?', [productId]);
+
+        const parsedVariants = variants ? JSON.parse(variants) : [];
+        const keptVariantImages = new Set();
+
+        for (let i = 0; i < parsedVariants.length; i++) {
+            const v = parsedVariants[i];
+            if (v.existingImage) {
+                keptVariantImages.add(v.existingImage);
+            }
+        }
+
+        // Clean up old variant images from disk if replaced or removed
+        for (const oldVar of oldVariants) {
+            if (oldVar.image && !keptVariantImages.has(oldVar.image)) {
+                if (oldVar.image.includes('/productimages/')) {
+                    const filename = oldVar.image.split('/productimages/').pop();
+                    const filePath = path.join(__dirname, 'public', 'productimages', filename);
+                    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                }
+            }
+        }
+
+        for (let i = 0; i < parsedVariants.length; i++) {
+            const v = parsedVariants[i];
+            const variantImgFile = files.find(f => f.fieldname === `variantImage_${i}`);
+            let variantImagePath = null;
+
+            if (variantImgFile) {
+                variantImagePath = `${baseUrl}/productimages/${variantImgFile.filename}`;
+            } else if (v.existingImage) {
+                variantImagePath = v.existingImage;
+            }
+
+            const [variantResult] = await connection.execute(
+                `INSERT INTO variants (product_id, sku, stock_quantity, price_override, image) VALUES (?, ?, ?, ?, ?)`,
+                [
+                    productId, 
+                    v.sku, 
+                    v.stock_quantity !== undefined ? v.stock_quantity : 0, 
+                    v.price_override !== undefined ? v.price_override : null,
+                    variantImagePath
+                ]
+            );
+
+            const variantId = variantResult.insertId;
+
+            if (v.attributes && Array.isArray(v.attributes)) {
+                for (const attr of v.attributes) {
+                    if (attr.attributeId && attr.value) {
+                        await connection.execute(
+                            `INSERT INTO variant_values (variant_id, attribute_id, value) VALUES (?, ?, ?)`,
+                            [variantId, attr.attributeId, attr.value]
+                        );
+                    }
+                }
+            }
+        }
+
+        await connection.commit();
+        res.json({ message: 'Product successfully updated!' });
+    } catch (err) {
+        await connection.rollback();
+        console.error('Update Product Error:', err);
+        if (err.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ message: 'Duplicate SKU detected. Each variant must have a unique SKU.' });
+        }
+        res.status(500).json({ message: 'Server error while updating product.' });
+    } finally {
+        connection.release();
+    }
+});
+
+// --- Admin: Get Single Product by ID for Editing ---
+app.get('/api/shop/products/:id', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Access denied. Administrator privileges required.' });
+        }
+        const productId = req.params.id;
+        const [products] = await pool.execute(`
+            SELECT p.*, c.name AS category_name, b.name AS brand_name 
+            FROM products p 
+            LEFT JOIN categories c ON p.category_id = c.id 
+            LEFT JOIN brands b ON p.brand_id = b.id 
+            WHERE p.id = ?
+        `, [productId]);
+
+        if (products.length === 0) {
+            return res.status(404).json({ message: 'Product not found.' });
+        }
+
+        const product = products[0];
+
+        const [variants] = await pool.execute('SELECT * FROM variants WHERE product_id = ?', [productId]);
+        const [variantValues] = await pool.execute(`
+            SELECT vv.variant_id, a.name AS attribute_name, vv.value 
+            FROM variant_values vv
+            JOIN attributes a ON vv.attribute_id = a.id
+            WHERE vv.variant_id IN (SELECT id FROM variants WHERE product_id = ?)
+        `, [productId]);
+
+        const [productImages] = await pool.execute('SELECT * FROM product_images WHERE product_id = ? ORDER BY display_order ASC', [productId]);
+
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+        const pVariants = variants.map(v => {
+            const attrs = variantValues.filter(vv => vv.variant_id === v.id);
+            return {
+                ...v,
+                image: v.image ? (v.image.startsWith('http') ? v.image : `${baseUrl}/productimages/${v.image}`) : null,
+                attributes: attrs
+            };
+        });
+
+        const galleryImages = productImages.map(img => img.image_path);
+
+        const formattedProduct = {
+            ...product,
+            main_image: product.main_image ? (product.main_image.startsWith('http') ? product.main_image : `${baseUrl}/productimages/${product.main_image}`) : null,
+            gallery_images: galleryImages,
+            variants: pVariants
+        };
+
+        res.json(formattedProduct);
+    } catch (err) {
+        console.error('Fetch Single Product Error:', err);
+        res.status(500).json({ message: 'Error fetching product details.' });
+    }
+});
 
 
 
