@@ -1,4 +1,41 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // 1. Strict Database Role Verification via HttpOnly Cookies BEFORE Loading Any Data
+    try {
+        const profileRes = await fetch('/api/user/profile', {
+            credentials: 'include' // <--- Sends the secure cookie automatically
+        });
+
+        if (!profileRes.ok) {
+            throw new Error('Failed to verify session.');
+        }
+
+        const userData = await profileRes.json();
+
+        if (userData.role !== 'admin') {
+            await handleUnauthorized('Access denied. Administrator privileges required to access Class Schedule Management.');
+            return;
+        }
+
+        // Admin verification passed successfully. Proceed to initialize page data.
+        initClassScheduleManagement();
+
+    } catch (err) {
+        console.error('Security Check Error:', err);
+        await handleUnauthorized('Session validation failed. Please log in again.');
+    }
+});
+
+// Helper function to handle unauthorized access securely
+async function handleUnauthorized(message) {
+    if (typeof window.showErrorModal === 'function') {
+        await window.showErrorModal(message, 'Access Restricted');
+    } else {
+        alert(message);
+    }
+    window.location.href = '../LandingPage/LandingPage.html';
+}
+
+function initClassScheduleManagement() {
     const classTableBody = document.getElementById('classTableBody');
     
     // Filter Modal Elements
@@ -241,9 +278,8 @@ document.addEventListener('DOMContentLoaded', () => {
         attendeesModal.classList.add('active');
 
         try {
-            const token = localStorage.getItem('token');
             const res = await fetch(`/api/classes/${classId}/attendees`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include' // Uses HttpOnly cookie session securely
             });
             if (!res.ok) throw new Error('Failed to fetch attendees.');
             const attendees = await res.json();
@@ -292,7 +328,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let callAction = false;
         if (typeof window.showConfirmModal === 'function') {
-            // Uses global confirmation modal: Confirm = Call, Cancel = Copy
             callAction = await window.showConfirmModal(
                 `Would you like to call or copy the phone number: ${cleanPhone}?`,
                 'Contact Student',
@@ -308,7 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             navigator.clipboard.writeText(cleanPhone).then(() => {
                 if (typeof window.showSuccessModal === 'function') {
-                    window.showSuccessModal(`Copied "${cleanPhone}" to clipboard!`, 'Copied');
+                    window.showSuccessModal(`Copied "${cleanPhone}" toclipboard!`, 'Copied');
                 } else {
                     alert(`Copied "${cleanPhone}" to clipboard!`);
                 }
@@ -322,4 +357,4 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial Execution
     loadFilterOptions();
     fetchClasses();
-});
+}

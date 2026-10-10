@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Coach Builder - Rhythm & Soul Dance Studio</title>
+    <!-- FontAwesome Icons for Spinners -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Shared Header CSS -->
+    <link rel="stylesheet" href="../Shared/header.css">
     <link rel="stylesheet" href="CoachBuilderPage.css">
 </head>
 <body>
@@ -55,7 +59,16 @@
         </div>
     </main>
 
-    <!-- Global Header Script (Auto-loads header, font-awesome, and global modals)[cite: 4] -->
+    <!-- Page-wide Loading Overlay -->
+    <div id="pageLoadingOverlay" class="page-loading-overlay">
+        <div class="spinner-box">
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            <h3>Creating Coach Profile...</h3>
+            <p>Please wait while we save records and send the email verification link.</p>
+        </div>
+    </div>
+
+    <!-- Global Header Script -->
     <script src="../Shared/header.js"></script>
     <script src="CoachBuilderPage.js"></script>
 </body>

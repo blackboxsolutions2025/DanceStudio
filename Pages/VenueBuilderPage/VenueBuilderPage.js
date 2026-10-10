@@ -1,15 +1,43 @@
 let galleryItems = []; // Array of { id: null, file: null, url: null }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    const token = localStorage.getItem('token');
-    const userRole = localStorage.getItem('userRole');
+    // 1. Strict Database Role Verification via HttpOnly Cookies BEFORE Loading Any Data
+    try {
+        const profileRes = await fetch('/api/user/profile', {
+            credentials: 'include' // <--- Sends the secure cookie automatically
+        });
 
-    if (!token || userRole !== 'admin') {
-        alert('Access denied. Administrator privileges required.');
-        window.location.href = '../LoginPage/LoginPage.html';
-        return;
+        if (!profileRes.ok) {
+            throw new Error('Failed to verify session.');
+        }
+
+        const userData = await profileRes.json();
+
+        if (userData.role !== 'admin') {
+            await handleUnauthorized('Access denied. Administrator privileges required to access Venue Builder.');
+            return;
+        }
+
+        // Admin verification passed successfully. Proceed to initialize page data.
+        initVenueBuilder();
+
+    } catch (err) {
+        console.error('Security Check Error:', err);
+        await handleUnauthorized('Session validation failed. Please log in again.');
     }
+});
 
+// Helper function to handle unauthorized access securely
+async function handleUnauthorized(message) {
+    if (typeof window.showErrorModal === 'function') {
+        await window.showErrorModal(message, 'Access Restricted');
+    } else {
+        alert(message);
+    }
+    window.location.href = '../LandingPage/LandingPage.html';
+}
+
+function initVenueBuilder() {
     const urlParams = new URLSearchParams(window.location.search);
     const venueId = urlParams.get('id');
 
@@ -23,7 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const venueNameInput = document.getElementById('venueName');
     const venueLocationInput = document.getElementById('venueLocation');
     const venueLocationLinkInput = document.getElementById('venueLocationLink');
-    const venueHourlyRateInput = document.getElementById('venueHourlyRate'); // <-- Defined here
+    const venueHourlyRateInput = document.getElementById('venueHourlyRate');
     const venueImageFileInput = document.getElementById('venueImageFile');
     const mainImageFileName = document.getElementById('mainImageFileName');
     const currentImagePreview = document.getElementById('currentImagePreview');
@@ -35,43 +63,48 @@ document.addEventListener('DOMContentLoaded', async () => {
         subHeading.textContent = 'Update studio room, location, map details, and image sequence.';
         submitBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Update Venue';
 
-        try {
-            const res = await fetch(`/api/venues/${venueId}`);
-            if (!res.ok) throw new Error('Failed to load venue details.');
-            const venue = await res.json();
+        // Fetch venue details for editing[cite: 75]
+        (async () => {
+            try {
+                const res = await fetch(`/api/venues/${venueId}`, {
+                    credentials: 'include'
+                });
+                if (!res.ok) throw new Error('Failed to load venue details.');
+                const venue = await res.json();
 
-            venueNameInput.value = venue.name || '';
-            venueLocationInput.value = venue.location || '';
-            venueLocationLinkInput.value = venue.location_link || '';
-            venueHourlyRateInput.value = venue.hourly_rate || '1500.00'; // <-- Populated here correctly
+                venueNameInput.value = venue.name || '';
+                venueLocationInput.value = venue.location || '';
+                venueLocationLinkInput.value = venue.location_link || '';
+                venueHourlyRateInput.value = venue.hourly_rate || '1500.00';
 
-            if (venue.image) {
-                previewImg.src = venue.image;
-                currentImagePreview.style.display = 'block';
-                const fileName = venue.image.split('/').pop();
-                if (mainImageFileName) {
-                    mainImageFileName.textContent = fileName;
-                    mainImageFileName.style.color = '#34d399';
-                    mainImageFileName.title = fileName;
+                if (venue.image) {
+                    previewImg.src = venue.image;
+                    currentImagePreview.style.display = 'block';
+                    const fileName = venue.image.split('/').pop();
+                    if (mainImageFileName) {
+                        mainImageFileName.textContent = fileName;
+                        mainImageFileName.style.color = '#34d399';
+                        mainImageFileName.title = fileName;
+                    }
+                }
+
+                if (venue.gallery_images && Array.isArray(venue.gallery_images)) {
+                    galleryItems = venue.gallery_images.map(img => ({
+                        id: img.id,
+                        file: null,
+                        url: img.image_path
+                    }));
+                }
+                renderGallery();
+            } catch (err) {
+                console.error('Error fetching venue for edit:', err);
+                if (typeof window.showErrorModal === 'function') {
+                    await window.showErrorModal('Failed to load venue details.', 'Error');
+                } else {
+                    alert('Failed to load venue details.');
                 }
             }
-
-            if (venue.gallery_images && Array.isArray(venue.gallery_images)) {
-                galleryItems = venue.gallery_images.map(img => ({
-                    id: img.id,
-                    file: null,
-                    url: img.image_path
-                }));
-            }
-            renderGallery();
-        } catch (err) {
-            console.error('Error fetching venue for edit:', err);
-            if (typeof window.showErrorModal === 'function') {
-                await window.showErrorModal('Failed to load venue details.', 'Error');
-            } else {
-                alert('Failed to load venue details.');
-            }
-        }
+        })();
     } else {
         renderGallery();
     }
@@ -110,11 +143,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const url = venueId ? `/api/admin/venues/${venueId}` : '/api/admin/venues';
             const method = venueId ? 'PUT' : 'POST';
 
+            // Fixed: Moved credentials out of headers and into root fetch configuration object
             const res = await fetch(url, {
                 method: method,
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
+                credentials: 'include',
                 body: formData
             });
 
@@ -141,7 +173,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             submitBtn.innerHTML = originalBtnHTML;
         }
     });
-});
+}
 
 window.handleMainImageChange = function(event) {
     const file = event.target.files[0];

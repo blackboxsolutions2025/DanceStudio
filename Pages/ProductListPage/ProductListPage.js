@@ -1,14 +1,41 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Enforce Admin-Only Access Guard
-    const token = localStorage.getItem('token');
-    const userRole = localStorage.getItem('userRole');
+    // 1. Strict Database Role Verification via HttpOnly Cookies BEFORE Loading Any Data
+    try {
+        const profileRes = await fetch('/api/user/profile', {
+            credentials: 'include' // <--- Sends the secure cookie automatically
+        });
 
-    if (!token || userRole !== 'admin') {
-        alert('Access denied. Administrator privileges required.');
-        window.location.href = '../LandingPage/LandingPage.html';
-        return;
+        if (!profileRes.ok) {
+            throw new Error('Failed to verify session.');
+        }
+
+        const userData = await profileRes.json();
+
+        if (userData.role !== 'admin') {
+            await handleUnauthorized('Access denied. Administrator privileges required to access Product Management.');
+            return;
+        }
+
+        // Admin verification passed successfully. Proceed to initialize page data.
+        initProductManagement();
+
+    } catch (err) {
+        console.error('Security Check Error:', err);
+        await handleUnauthorized('Session validation failed. Please log in again.');
     }
+});
 
+// Helper function to handle unauthorized access securely
+async function handleUnauthorized(message) {
+    if (typeof window.showErrorModal === 'function') {
+        await window.showErrorModal(message, 'Access Restricted');
+    } else {
+        alert(message);
+    }
+    window.location.href = '../LandingPage/LandingPage.html';
+}
+
+function initProductManagement() {
     const productTableBody = document.getElementById('productTableBody');
     const searchInput = document.getElementById('searchInput');
     const addProductBtn = document.getElementById('addProductBtn');
@@ -29,7 +56,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Fetch Products Catalog
     const loadInventory = async () => {
         try {
-            const res = await fetch('/api/shop/products');
+            const res = await fetch('/api/shop/products', {
+                credentials: 'include'
+            });
+            if (!res.ok) throw new Error('Failed to fetch inventory.');
             allProducts = await res.json();
             renderTable(allProducts);
         } catch (err) {
@@ -132,4 +162,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     loadInventory();
-});
+}

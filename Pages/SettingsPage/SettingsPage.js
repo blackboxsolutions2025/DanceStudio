@@ -1,16 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        if (typeof window.showErrorModal === 'function') {
-            window.showErrorModal('Please log in to access your account settings.', 'Access Denied', () => {
-                window.location.href = '../LoginPage/LoginPage.html';
-            });
-        } else {
-            alert('Please log in first.');
-            window.location.href = '../LoginPage/LoginPage.html';
-        }
-        return;
-    }
 
     const profileForm = document.getElementById('profileForm');
     const profileNameInput = document.getElementById('profileName');
@@ -44,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadUserData = async () => {
         try {
             const response = await fetch('/api/user/profile', {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
             if (!response.ok) throw new Error('Failed to load profile.');
             
@@ -216,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/api/user/profile', {
                 method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}` },
+                credentials: 'include',
                 body: formData
             });
 
@@ -272,7 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const response = await fetch('/api/coach/class-image', {
                     method: 'PUT',
-                    headers: { 'Authorization': `Bearer ${token}` },
+                    credentials: 'include',
                     body: formData
                 });
 
@@ -349,7 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    credentials: 'include'
                 },
                 body: JSON.stringify({ currentPassword, newPassword: newPass })
             });

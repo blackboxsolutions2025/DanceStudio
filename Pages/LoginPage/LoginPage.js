@@ -1,4 +1,3 @@
-// Toggle between Login and Signup States
 function switchState(state) {
     const loginForm = document.getElementById('loginForm');
     const signupForm = document.getElementById('signupForm');
@@ -40,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include', // <--- Crucial: allows browser to store HttpOnly cookie
                 body: JSON.stringify({ email, password })
             });
 
@@ -49,9 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(data.message || 'Login failed');
             }
 
-            // Save token to localStorage
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('userName', data.name);
+            // REMOVED: localStorage.setItem('token', data.token); -> Token is now securely stored in cookie!
+            localStorage.setItem('userName', data.name); // Non-sensitive UI metadata is fine in localStorage
 
             window.showSuccessModal(`Welcome back, ${data.name}!`, 'Login Successful', () => {
                 window.location.href = '../LandingPage/LandingPage.html';

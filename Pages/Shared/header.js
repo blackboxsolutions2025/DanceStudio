@@ -1,4 +1,3 @@
-// Shared Header & Navigation Drawer Script
 (async () => {
     if (!document.querySelector('link[href*="font-awesome"]')) {
         const fontAwesome = document.createElement('link');
@@ -16,41 +15,42 @@
 
     const currentPath = window.location.pathname;
 
-    const token = localStorage.getItem('token');
     let userName = localStorage.getItem('userName') || 'Guest User';
     let userRole = localStorage.getItem('userRole') || '';
     let userAvatar = localStorage.getItem('userAvatar');
+    let isAuthenticated = false;
 
-    if (token) {
-        try {
-            const profileRes = await fetch('/api/user/profile', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (profileRes.ok) {
-                const profileData = await profileRes.json();
-                userName = profileData.name || userName;
-                userRole = profileData.role || userRole;
-                
-                localStorage.setItem('userName', userName);
-                localStorage.setItem('userRole', userRole);
+    // Check authentication status via profile endpoint using the HttpOnly cookie
+    try {
+        const profileRes = await fetch('/api/user/profile', {
+            credentials: 'include' // <--- Sends the secure cookie automatically
+        });
+        
+        if (profileRes.ok) {
+            isAuthenticated = true;
+            const profileData = await profileRes.json();
+            userName = profileData.name || userName;
+            userRole = profileData.role || userRole;
+            
+            localStorage.setItem('userName', userName);
+            localStorage.setItem('userRole', userRole);
 
-                if (profileData.profileImage) {
-                    userAvatar = profileData.profileImage;
-                    localStorage.setItem('userAvatar', userAvatar);
-                } else {
-                    localStorage.removeItem('userAvatar');
-                    userAvatar = null;
-                }
-            } else if (profileRes.status === 401 || profileRes.status === 403) {
-                localStorage.removeItem('token');
-                localStorage.removeItem('userName');
-                localStorage.removeItem('userRole');
+            if (profileData.profileImage) {
+                userAvatar = profileData.profileImage;
+                localStorage.setItem('userAvatar', userAvatar);
+            } else {
                 localStorage.removeItem('userAvatar');
-                userRole = '';
+                userAvatar = null;
             }
-        } catch (err) {
-            console.error('Failed to sync header profile data:', err);
+        } else if (profileRes.status === 401 || profileRes.status === 403) {
+            isAuthenticated = false;
+            localStorage.removeItem('userName');
+            localStorage.removeItem('userRole');
+            localStorage.removeItem('userAvatar');
+            userRole = '';
         }
+    } catch (err) {
+        console.error('Failed to sync header profile data:', err);
     }
 
     const renderAvatarHTML = (fallbackIconClass) => {
@@ -63,7 +63,7 @@
     const formattedRole = userRole ? userRole.toUpperCase() : '';
 
     let dropdownContent = '';
-    if (token) {
+    if (isAuthenticated) {
         dropdownContent = `
             <div class="dropdown-user-info">
                 <div class="dropdown-avatar">
@@ -118,9 +118,9 @@
         </div>
     `;
 
-    // --- Role-Based Restricted Section (Below Contact) ---
+    // --- Role-Based Restricted Section ---
     let roleSpecificSectionHTML = '';
-    if (token && userRole) {
+    if (isAuthenticated && userRole) {
         let roleLinksHTML = '';
         
         if (userRole === 'student') {
@@ -144,7 +144,6 @@
             `;
         }
 
-        // Role name placed at the top of the selection without the word "Role:"
         roleSpecificSectionHTML = `
             <li class="drawer-separator-li"><hr class="drawer-separator"></li>
             <li class="drawer-role-display">
@@ -248,6 +247,12 @@
                     : confirm('Are you sure you want to log out?');
 
                 if (confirmed) {
+                    // Call backend logout endpoint to clear the HttpOnly cookie
+                    await fetch('/api/auth/logout', {
+                        method: 'POST',
+                        credentials: 'include'
+                    });
+
                     localStorage.clear();
                     window.location.href = '../LoginPage/LoginPage.html';
                 }

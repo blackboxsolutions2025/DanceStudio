@@ -1,15 +1,8 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    const token = localStorage.getItem('token');
-    
-    if (!token) {
-        handleUnauthorized('Access denied. Please log in as an administrator.');
-        return;
-    }
-
-    // 1. Strict Database Role Verification BEFORE Loading Any Data
+    // 1. Strict Database Role Verification via HttpOnly Cookies BEFORE Loading Any Data
     try {
         const profileRes = await fetch('/api/user/profile', {
-            headers: { 'Authorization': `Bearer ${token}` }
+            credentials: 'include' // <--- Sends the secure cookie automatically
         });
 
         if (!profileRes.ok) {
@@ -24,7 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Admin verification passed successfully. Proceed to initialize page data.
-        initCoachManagement(token);
+        initCoachManagement();
 
     } catch (err) {
         console.error('Security Check Error:', err);
@@ -43,7 +36,7 @@ function handleUnauthorized(message) {
     }
 }
 
-function initCoachManagement(token) {
+function initCoachManagement() {
     const coachTableBody = document.getElementById('coachTableBody');
     const loadingState = document.getElementById('loadingState');
     const emptyState = document.getElementById('emptyState');
@@ -58,7 +51,7 @@ function initCoachManagement(token) {
             emptyState.style.display = 'none';
 
             const response = await fetch('/api/admin/coaches', {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include' // <--- Sends the secure cookie automatically
             });
 
             if (!response.ok) {
@@ -94,12 +87,10 @@ function initCoachManagement(token) {
                 ? `<img src="${coach.profileimage}" alt="${coach.name}">` 
                 : `<i class="fa-solid fa-user-tie"></i>`;
 
-            // Email link opens Gmail / default mail client
             const emailHTML = coach.email 
                 ? `<a href="mailto:${coach.email}" class="contact-link">${coach.email}</a>` 
                 : 'No email provided';
 
-            // Phone link triggers prompt for Call or Copy
             const phoneHTML = coach.phone 
                 ? `<a href="#" class="contact-link phone-link" data-phone="${coach.phone}">${coach.phone}</a>` 
                 : 'No phone provided';
@@ -131,31 +122,26 @@ function initCoachManagement(token) {
                 </td>
             `;
 
-            // Attach interactive handler for phone number prompt (Call vs Copy)
             const phoneLink = tr.querySelector('.phone-link');
             if (phoneLink) {
                 phoneLink.addEventListener('click', async (e) => {
                     e.preventDefault();
                     const phoneNum = coach.phone;
 
-                    // Uses the project's confirmation modal to ask Call (Confirm) or Copy (Cancel)[cite: 44]
                     const wantsCall = typeof window.showConfirmModal === 'function'
                         ? await window.showConfirmModal(`Choose an action for phone number: ${phoneNum}`, 'Phone Options', 'Call', 'Copy')
                         : confirm(`Call ${phoneNum}?\nClick Cancel to Copy instead.`);
 
                     if (wantsCall) {
-                        // Navigate to phone call handler[cite: 44]
                         window.location.href = `tel:${phoneNum}`;
                     } else {
-                        // Robust copy approach with fallback for all browsers/contexts
                         try {
                             if (navigator.clipboard && navigator.clipboard.writeText) {
                                 await navigator.clipboard.writeText(phoneNum);
                             } else {
-                                // Fallback textarea method
                                 const textarea = document.createElement('textarea');
                                 textarea.value = phoneNum;
-                                textarea.style.position = 'fixed'; // Prevents page scrolling
+                                textarea.style.position = 'fixed';
                                 document.body.appendChild(textarea);
                                 textarea.focus();
                                 textarea.select();

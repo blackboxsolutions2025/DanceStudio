@@ -1,10 +1,39 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Helper to handle unauthorized sessions gracefully
+    async function handleUnauthorized(message) {
+        console.warn(message);
+        localStorage.clear();
         window.location.href = '../LoginPage/LoginPage.html';
-        return;
     }
 
+    // 1. Strict Database Role Verification via HttpOnly Cookies BEFORE Loading Any Data
+    try {
+        const profileRes = await fetch('/api/user/profile', {
+            credentials: 'include' // <--- Sends the secure HttpOnly cookie automatically
+        });
+
+        if (!profileRes.ok) {
+            throw new Error('Failed to verify session.');
+        }
+
+        const userData = await profileRes.json();
+
+        // 2. Strict Role Check: Ensure only students can access this page
+        if (userData.role !== 'student') {
+            await handleUnauthorized('Access denied. Student privileges required to access Student Class Schedule.');
+            return;
+        }
+
+        // Session and role verification passed successfully. Proceed to initialize page data.
+        initStudentSchedulePage();
+
+    } catch (err) {
+        console.error('Security Check Error:', err);
+        await handleUnauthorized('Session validation failed. Please log in again.');
+    }
+});
+
+function initStudentSchedulePage() {
     let allEnrollments = [];
     let currentFilteredEnrollments = [];
     let currentIndex = 0;
@@ -99,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchUserSchedule() {
         try {
             const res = await fetch('/api/user/schedule', {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
 
             if (!res.ok) {
@@ -247,7 +276,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const matchGenre = !selectedGenre || String(item.genreid) === String(selectedGenre);
-            // Note: student schedules use item.coach_id and item.venue_id
             const matchCoach = !selectedCoach || String(item.coach_id) === String(selectedCoach);
             const matchVenue = !selectedVenue || String(item.venue_id) === String(selectedVenue);
             
@@ -273,9 +301,159 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- Tab Filtering Listeners ---
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentFilter = btn.getAttribute('data-tab');
+            applyFilters();
+        });
+    });
+
+    loadFilterOptions();
+    fetchUserSchedule();
+
+    let html5QrCode = null;
+    let activeScanningClassId = null;
+
+    function getStudentAttendanceButtonState(item) {
+        const now = new Date();
+        const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
+        const nowPHT = new Date(utcTime + (3600000 * 8));
+
+        const [year, month, day] = item.schedule_date.split('T')[0].split('-').map(Number);
+        const [startHour, startMin] = item.start_time.split(':').map(Number);
+        const [endHour, endMin] = item.end_time.split(':').map(Number);
+
+        const startDateTime = new Date(year, month - 1, day, startHour, startMin, 0);
+        const endDateTime = new Date(year, month - 1, day, endHour, endMin, 0);
+        const timeInOpenTime = new Date(startDateTime.getTime() - 30 * 60000);
+
+        if (item.attendance_status === 'completed') {
+            return { type: 'completed', text: 'Attendance Completed', disabled: true, modeClass: 'completed-mode' };
+        }
+
+        if (item.attendance_status === 'timed_in' && nowPHT < endDateTime) {
+            return { type: 'already_timed_in', text: 'Already Timed In', disabled: true, modeClass: 'disabled-btn' };
+        }
+
+        if (nowPHT < timeInOpenTime) {
+            return { type: 'locked', text: 'QR Opens 30m Prior', disabled: true, modeClass: 'disabled-btn' };
+        } else if (nowPHT >= timeInOpenTime && nowPHT <= endDateTime) {
+            if (item.attendance_status === 'timed_in') {
+                return { type: 'time_out', text: 'Time-Out Attendance', disabled: false, modeClass: 'time-out-mode' };
+            } else {
+                return { type: 'time_in', text: 'Time-In Attendance', disabled: false, modeClass: '' };
+            }
+        } else if (nowPHT > endDateTime) {
+            if (item.attendance_status === 'timed_in') {
+                return { type: 'time_out', text: 'Time-Out Attendance', disabled: false, modeClass: 'time-out-mode' };
+            } else {
+                return { type: 'ended', text: 'Class Ended', disabled: true, modeClass: 'disabled-btn' };
+            }
+        }
+
+        return { type: 'locked', text: 'Not Available', disabled: true, modeClass: 'disabled-btn' };
+    }
+
+    function updateAttendanceButtonStyle(btn, item) {
+        const state = getStudentAttendanceButtonState(item);
+        const textSpan = btn.querySelector('.attendance-btn-text');
+        const icon = btn.querySelector('i');
+        
+        btn.className = `btn-attendance ${state.modeClass}`;
+        btn.disabled = state.disabled;
+        btn.dataset.attendanceStatus = item.attendance_status;
+        textSpan.textContent = state.text;
+
+        if (state.type === 'time_out') {
+            icon.className = 'fas fa-sign-out-alt';
+        } else if (state.type === 'completed') {
+            icon.className = 'fas fa-check-circle';
+        } else if (state.type === 'already_timed_in') {
+            icon.className = 'fas fa-check';
+        } else if (state.type === 'locked' || state.type === 'ended') {
+            icon.className = 'fas fa-lock';
+        } else {
+            icon.className = 'fas fa-qrcode';
+        }
+    }
+
+    function openQrScannerModal() {
+        const modal = document.getElementById('qrScannerModal');
+        modal.style.display = 'flex';
+
+        html5QrCode = new Html5Qrcode("reader");
+        html5QrCode.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            async (decodedText) => {
+                await stopQrScanner();
+                submitAttendance(activeScanningClassId, decodedText);
+            },
+            (errorMessage) => {}
+        ).catch(err => {
+            console.error("Camera start error:", err);
+            document.getElementById('scannerStatus').textContent = "Unable to access camera.";
+        });
+    }
+
+    async function stopQrScanner() {
+        if (html5QrCode && html5QrCode.isScanning) {
+            await html5QrCode.stop();
+            html5QrCode.clear();
+        }
+        document.getElementById('qrScannerModal').style.display = 'none';
+    }
+
+    const closeQrModalBtn = document.getElementById('closeQrModal');
+    const cancelQrScanBtn = document.getElementById('cancelQrScan');
+    if (closeQrModalBtn) closeQrModalBtn.addEventListener('click', stopQrScanner);
+    if (cancelQrScanBtn) cancelQrScanBtn.addEventListener('click', stopQrScanner);
+
+    async function submitAttendance(classId, qrData) {
+        const loadingModal = document.getElementById('loadingModal');
+        if (loadingModal) loadingModal.style.display = 'flex';
+
+        try {
+            const res = await fetch('/api/attendance/scan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ class_id: classId, qr_code: qrData })
+            });
+
+            const data = await res.json();
+            
+            if (loadingModal) loadingModal.style.display = 'none';
+
+            if (!res.ok) throw new Error(data.message || 'Failed to record attendance.');
+
+            if (typeof showSuccessModal === 'function') {
+                showSuccessModal(data.message);
+            } else {
+                alert(data.message);
+            }
+
+            fetchUserSchedule();
+        } catch (err) {
+            if (loadingModal) loadingModal.style.display = 'none';
+            console.error('Attendance Error:', err);
+            
+            if (typeof showErrorModal === 'function') {
+                showErrorModal(err.message);
+            } else {
+                alert(err.message);
+            }
+        }
+    }
+
     // --- Pre-load All Cards into Carousel DOM ---
     function renderCarousel(enrollmentsToRender) {
-        currentFilteredEnrollments = enrollmentsToRender; // <-- Add this line to fix dragging/panning bounds
+        currentFilteredEnrollments = enrollmentsToRender;
         if (!scheduleTrack) return;
         scheduleTrack.innerHTML = '';
         cardElements = [];
@@ -295,7 +473,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const classImage = item.coach_class_image || item.coach_user_image || 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600';
             const imagePosition = item.coach_image_position || '50% 50%';
 
-            // Determine if the class is past due
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const classDate = new Date(item.schedule_date);
@@ -342,7 +519,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
 
-            // Calendar Download Action (only active if not past due)
             const calendarBtn = card.querySelector('.btn-calendar');
             if (calendarBtn && !isPastDue) {
                 calendarBtn.addEventListener('click', (e) => {
@@ -352,9 +528,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
-            // Card Click Navigation
+            const attendanceBtn = card.querySelector('.btn-attendance');
+            updateAttendanceButtonStyle(attendanceBtn, item);
+
+            attendanceBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const classId = e.currentTarget.dataset.classId;
+                const currentStatus = e.currentTarget.dataset.attendanceStatus;
+
+                if (currentStatus === 'completed') return;
+
+                activeScanningClassId = classId;
+                openQrScannerModal();
+            });
+
             card.addEventListener('click', (e) => {
-                if (e.target.closest('.btn-calendar')) return;
+                if (e.target.closest('.btn-calendar') || e.target.closest('.btn-attendance')) return;
                 const clickedIdx = parseInt(card.dataset.index, 10);
                 if (clickedIdx !== currentIndex) {
                     currentIndex = clickedIdx;
@@ -369,7 +558,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCardPositions(currentIndex, false);
     }
 
-    // --- 3D Carousel Physics Math ---
     function updateCardPositions(vIndex, animate = false) {
         const isMobile = window.innerWidth <= 768;
         const spacing = isMobile ? 75 : 88;
@@ -411,7 +599,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentIndexDisplay) currentIndexDisplay.textContent = Math.round(vIndex) + 1;
     }
 
-    // --- Touch & Drag Navigation System ---
     let startX = 0;
     let currentX = 0;
     let isDragging = false;
@@ -504,7 +691,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCardPositions(currentIndex, true);
     });
 
-    // --- .ics Calendar File Generation with Alarms ---
     function downloadICSFile(item) {
         try {
             const dateStr = item.schedule_date.split('T')[0].replace(/-/g, '');
@@ -562,271 +748,4 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Failed to generate calendar file. Please try again.');
         }
     }
-
-    // --- Tab Filtering Listeners ---
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            tabBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentFilter = btn.getAttribute('data-tab');
-            applyFilters();
-        });
-    });
-
-    loadFilterOptions();
-    fetchUserSchedule();
-
-    let html5QrCode = null;
-    let activeScanningClassId = null;
-
-    function getStudentAttendanceButtonState(item) {
-        // Get current time adjusted to Philippine Time (UTC+8)
-        const now = new Date();
-        const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
-        const nowPHT = new Date(utcTime + (3600000 * 8));
-
-        // Parse class date and time parts explicitly
-        const [year, month, day] = item.schedule_date.split('T')[0].split('-').map(Number);
-        const [startHour, startMin] = item.start_time.split(':').map(Number);
-        const [endHour, endMin] = item.end_time.split(':').map(Number);
-
-        const startDateTime = new Date(year, month - 1, day, startHour, startMin, 0);
-        const endDateTime = new Date(year, month - 1, day, endHour, endMin, 0);
-        const timeInOpenTime = new Date(startDateTime.getTime() - 30 * 60000); // 30 mins before start
-
-        if (item.attendance_status === 'completed') {
-            return { type: 'completed', text: 'Attendance Completed', disabled: true, modeClass: 'completed-mode' };
-        }
-
-        // If student has already timed in, but class has not reached the end time yet: lock button
-        if (item.attendance_status === 'timed_in' && nowPHT < endDateTime) {
-            return { type: 'already_timed_in', text: 'Already Timed In', disabled: true, modeClass: 'disabled-btn' };
-        }
-
-        if (nowPHT < timeInOpenTime) {
-            return { type: 'locked', text: 'QR Opens 30m Prior', disabled: true, modeClass: 'disabled-btn' };
-        } else if (nowPHT >= timeInOpenTime && nowPHT <= endDateTime) {
-            if (item.attendance_status === 'timed_in') {
-                return { type: 'time_out', text: 'Time-Out Attendance', disabled: false, modeClass: 'time-out-mode' };
-            } else {
-                return { type: 'time_in', text: 'Time-In Attendance', disabled: false, modeClass: '' };
-            }
-        } else if (nowPHT > endDateTime) {
-            if (item.attendance_status === 'timed_in') {
-                return { type: 'time_out', text: 'Time-Out Attendance', disabled: false, modeClass: 'time-out-mode' };
-            } else {
-                return { type: 'ended', text: 'Class Ended', disabled: true, modeClass: 'disabled-btn' };
-            }
-        }
-
-        return { type: 'locked', text: 'Not Available', disabled: true, modeClass: 'disabled-btn' };
-    }
-
-    function updateAttendanceButtonStyle(btn, item) {
-        const state = getStudentAttendanceButtonState(item);
-        const textSpan = btn.querySelector('.attendance-btn-text');
-        const icon = btn.querySelector('i');
-        
-        btn.className = `btn-attendance ${state.modeClass}`;
-        btn.disabled = state.disabled;
-        btn.dataset.attendanceStatus = item.attendance_status;
-        textSpan.textContent = state.text;
-
-        if (state.type === 'time_out') {
-            icon.className = 'fas fa-sign-out-alt';
-        } else if (state.type === 'completed') {
-            icon.className = 'fas fa-check-circle';
-        } else if (state.type === 'already_timed_in') {
-            icon.className = 'fas fa-check';
-        } else if (state.type === 'locked' || state.type === 'ended') {
-            icon.className = 'fas fa-lock';
-        } else {
-            icon.className = 'fas fa-qrcode';
-        }
-    }
-
-    function openQrScannerModal() {
-        const modal = document.getElementById('qrScannerModal');
-        modal.style.display = 'flex';
-
-        html5QrCode = new Html5Qrcode("reader");
-        html5QrCode.start(
-            { facingMode: "environment" },
-            { fps: 10, qrbox: { width: 250, height: 250 } },
-            async (decodedText) => {
-                await stopQrScanner();
-                submitAttendance(activeScanningClassId, decodedText);
-            },
-            (errorMessage) => {
-                // Ignore scanning framing errors
-            }
-        ).catch(err => {
-            console.error("Camera start error:", err);
-            document.getElementById('scannerStatus').textContent = "Unable to access camera.";
-        });
-    }
-
-    async function stopQrScanner() {
-        if (html5QrCode && html5QrCode.isScanning) {
-            await html5QrCode.stop();
-            html5QrCode.clear();
-        }
-        document.getElementById('qrScannerModal').style.display = 'none';
-    }
-
-    const closeQrModalBtn = document.getElementById('closeQrModal');
-    const cancelQrScanBtn = document.getElementById('cancelQrScan');
-    if (closeQrModalBtn) closeQrModalBtn.addEventListener('click', stopQrScanner);
-    if (cancelQrScanBtn) cancelQrScanBtn.addEventListener('click', stopQrScanner);
-
-    async function submitAttendance(classId, qrData) {
-        const loadingModal = document.getElementById('loadingModal');
-        if (loadingModal) loadingModal.style.display = 'flex';
-
-        try {
-            const res = await fetch('/api/attendance/scan', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ class_id: classId, qr_code: qrData })
-            });
-
-            const data = await res.json();
-            
-            // Hide loading modal before showing success modal
-            if (loadingModal) loadingModal.style.display = 'none';
-
-            if (!res.ok) throw new Error(data.message || 'Failed to record attendance.');
-
-            if (typeof showSuccessModal === 'function') {
-                showSuccessModal(data.message);
-            } else {
-                alert(data.message);
-            }
-
-            fetchUserSchedule();
-        } catch (err) {
-            // Hide loading modal on error as well
-            if (loadingModal) loadingModal.style.display = 'none';
-            console.error('Attendance Error:', err);
-            
-            if (typeof showErrorModal === 'function') {
-                showErrorModal(err.message);
-            } else {
-                alert(err.message);
-            }
-        }
-    }
-
-    // --- Pre-load All Cards into Carousel DOM ---
-    function renderCarousel(enrollmentsToRender) {
-        currentFilteredEnrollments = enrollmentsToRender;
-        if (!scheduleTrack) return;
-        scheduleTrack.innerHTML = '';
-        cardElements = [];
-
-        if (enrollmentsToRender.length === 0) {
-            if (noClassesMessage) noClassesMessage.style.display = 'block';
-            if (carouselCounter) carouselCounter.style.display = 'none';
-            return;
-        }
-
-        if (noClassesMessage) noClassesMessage.style.display = 'none';
-        if (carouselCounter) carouselCounter.style.display = 'block';
-        if (totalClassesDisplay) totalClassesDisplay.textContent = enrollmentsToRender.length;
-
-        enrollmentsToRender.forEach((item, idx) => {
-            const { month, day } = getCardDateParts(item.schedule_date);
-            const classImage = item.coach_class_image || item.coach_user_image || 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600';
-            const imagePosition = item.coach_image_position || '50% 50%';
-
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const classDate = new Date(item.schedule_date);
-            classDate.setHours(0, 0, 0, 0);
-            const isPastDue = (classDate < today) || (currentFilter === 'past');
-
-            const card = document.createElement('div');
-            card.className = 'class-card-custom';
-            card.dataset.index = idx;
-
-            card.innerHTML = `
-                <div class="card-image-container">
-                    <img src="${classImage}" alt="${item.title}" class="card-bg-img" style="object-position: ${imagePosition};" draggable="false">
-                    <div class="card-gradient-overlay"></div>
-                    <div class="card-genre-badge">
-                        <span>${item.genre_name || 'DANCE CLASS'}</span>
-                    </div>
-                    <div class="card-date-badge">
-                        <span class="date-month">${month}</span>
-                        <span class="date-day">${day}</span>
-                    </div>
-                </div>
-                <div class="card-content-area">
-                    <h3 class="card-title" title="${item.title}">${item.title}</h3>
-                    
-                    <div class="card-time-pill">
-                        <i class="fas fa-clock"></i> ${formatTime(item.start_time)} - ${formatTime(item.end_time)}
-                    </div>
-
-                    <div class="card-footer-info">
-                        <div class="card-instructor-venue">
-                            <span class="card-coach"><i class="fas fa-chalkboard-teacher"></i> Coach ${item.coach_name || 'Instructor'}</span>
-                            <span class="card-venue"><i class="fas fa-map-marker-alt"></i> ${item.venue_name || 'Main Studio'}</span>
-                        </div>
-                    </div>
-
-                    <button class="btn-calendar" data-class-info='${encodeURIComponent(JSON.stringify(item))}' ${isPastDue ? 'disabled' : ''}>
-                        <i class="fas ${isPastDue ? 'fa-calendar-xmark' : 'fa-calendar-plus'}"></i> ${isPastDue ? 'Past Due' : 'Add to Calendar'}
-                    </button>
-
-                    <button class="btn-attendance" data-class-id="${item.class_id}" data-attendance-status="${item.attendance_status || 'none'}">
-                        <i class="fas fa-qrcode"></i> <span class="attendance-btn-text">Time-In Attendance</span>
-                    </button>
-                </div>
-            `;
-
-            // Calendar Download Action
-            const calendarBtn = card.querySelector('.btn-calendar');
-            if (calendarBtn && !isPastDue) {
-                calendarBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const enrollmentData = JSON.parse(decodeURIComponent(e.currentTarget.dataset.classInfo));
-                    downloadICSFile(enrollmentData);
-                });
-            }
-
-            // Attendance Button Action
-            const attendanceBtn = card.querySelector('.btn-attendance');
-            updateAttendanceButtonStyle(attendanceBtn, item);
-
-            attendanceBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const classId = e.currentTarget.dataset.classId;
-                const currentStatus = e.currentTarget.dataset.attendanceStatus;
-
-                if (currentStatus === 'completed') return;
-
-                activeScanningClassId = classId;
-                openQrScannerModal();
-            });
-
-            // Card Click Navigation
-            card.addEventListener('click', (e) => {
-                if (e.target.closest('.btn-calendar') || e.target.closest('.btn-attendance')) return;
-                const clickedIdx = parseInt(card.dataset.index, 10);
-                if (clickedIdx !== currentIndex) {
-                    currentIndex = clickedIdx;
-                    updateCardPositions(currentIndex, true);
-                }
-            });
-
-            scheduleTrack.appendChild(card);
-            cardElements.push(card);
-        });
-
-        updateCardPositions(currentIndex, false);
-    }
-});
+}

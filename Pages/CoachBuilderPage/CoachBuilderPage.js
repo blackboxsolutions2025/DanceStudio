@@ -1,21 +1,10 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    const token = localStorage.getItem('token');
     let userRole = localStorage.getItem('userRole');
 
-    // 1. Strict Role Verification before loading any data[cite: 12]
-    if (!token) {
-        if (typeof window.showErrorModal === 'function') {
-            await window.showErrorModal('Access denied. Please log in as an administrator.', 'Authentication Required');
-        } else {
-            alert('Access denied. Please log in as an administrator.');
-        }
-        window.location.href = '../LoginPage/LoginPage.html';
-        return;
-    }
-
+    // 1. Verify Admin Role securely via HttpOnly cookie
     try {
         const profileRes = await fetch('/api/user/profile', {
-            headers: { 'Authorization': `Bearer ${token}` }
+            credentials: 'include'
         });
         
         if (profileRes.ok) {
@@ -40,10 +29,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    // 2. Form Submission & Navigation Handlers
     const form = document.getElementById('coachBuilderForm');
     const cancelBtn = document.getElementById('cancelBtn');
+    const pageLoadingOverlay = document.getElementById('pageLoadingOverlay');
 
+    // Cancel Button Handler
     cancelBtn.addEventListener('click', async () => {
         const confirmed = typeof window.showConfirmModal === 'function'
             ? await window.showConfirmModal('Are you sure you want to discard changes and go back?', 'Discard Changes', 'Discard', 'Stay')
@@ -54,6 +44,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    // Form Submit Handler with Page-Wide Loading Overlay
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -69,17 +60,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             phone: document.getElementById('coachPhone').value.trim()
         };
 
+        // --- Show Full-Page Loading Overlay ---
+        if (pageLoadingOverlay) {
+            pageLoadingOverlay.classList.add('active');
+        }
+
         try {
             const res = await fetch('/api/admin/coaches', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
+                credentials: 'include', // Ensures HttpOnly cookie session is passed
                 body: JSON.stringify(payload)
             });
 
             const data = await res.json();
+
+            // Hide overlay before showing modal or redirecting
+            if (pageLoadingOverlay) {
+                pageLoadingOverlay.classList.remove('active');
+            }
 
             if (res.ok) {
                 if (typeof window.showSuccessModal === 'function') {
@@ -97,6 +98,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (err) {
             console.error('Create Coach Error:', err);
+            
+            if (pageLoadingOverlay) {
+                pageLoadingOverlay.classList.remove('active');
+            }
+
             if (typeof window.showErrorModal === 'function') {
                 await window.showErrorModal('A server error occurred while creating the coach.', 'Network Error');
             } else {

@@ -1,12 +1,34 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const token = localStorage.getItem('token');
-    const userRole = localStorage.getItem('userRole');
+document.addEventListener('DOMContentLoaded', async () => {
+    // 1. Strict Database Role Verification via HttpOnly Cookies BEFORE Loading Any Data
+    try {
+        const profileRes = await fetch('/api/user/profile', {
+            credentials: 'include' // <--- Sends the secure HttpOnly cookie automatically
+        });
 
-    if (!token || userRole !== 'coach') {
+        if (!profileRes.ok) {
+            throw new Error('Failed to verify session.');
+        }
+
+        const userData = await profileRes.json();
+
+        if (userData.role !== 'coach') {
+            console.warn('Access denied. Coach privileges required.');
+            localStorage.clear();
+            window.location.href = '../LoginPage/LoginPage.html';
+            return;
+        }
+
+        // Coach verification passed successfully. Proceed to initialize page data.
+        initCoachSchedulePage();
+
+    } catch (err) {
+        console.error('Security Check Error:', err);
+        localStorage.clear();
         window.location.href = '../LoginPage/LoginPage.html';
-        return;
     }
+});
 
+function initCoachSchedulePage() {
     let allClasses = [];
     let currentFilteredClasses = [];
     let currentIndex = 0;
@@ -103,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchCoachSchedule() {
         try {
             const res = await fetch('/api/coach/schedule', {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
 
             if (!res.ok) {
@@ -233,7 +255,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Determine QR Code State based on Coach Time Window ---
     function getQrCodeButtonState(item) {
         const now = new Date();
         const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
@@ -261,9 +282,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return { type: 'locked', text: 'Not Available', disabled: true, modeClass: 'disabled-btn' };
     }
 
-    // --- Validate if Override is Allowed (Strictly on class date AND after end time) ---
     function canPerformOverride(item) {
-        if (!item || !item.schedule_date || !item.end_time) return true; // Allow if data is incomplete
+        if (!item || !item.schedule_date || !item.end_time) return true;
 
         const now = new Date();
         const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
@@ -279,11 +299,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const [endHour, endMin] = String(item.end_time).split(':').map(Number);
         const endDateTime = new Date(year, month - 1, day, endHour || 0, endMin || 0, 0);
 
-        // Override is allowed only if current PHT time is greater than or equal to class end time
         return nowPHT >= endDateTime;
     }
 
-    // --- .ics Calendar File Generation with Alarms ---
     function downloadICSFile(item) {
         try {
             const dateStr = item.schedule_date.split('T')[0].replace(/-/g, '');
@@ -415,7 +433,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
 
-            // Calendar Download Action
             const calendarBtn = card.querySelector('.btn-calendar');
             if (calendarBtn && !isPastDue) {
                 calendarBtn.addEventListener('click', (e) => {
@@ -433,29 +450,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
-            // Double click on slots to trigger Attendee & Override Modal with Strict Time/Date Check
             const slotsElement = card.querySelector('.card-coach');
-                if (slotsElement) {
-                    const handleModalTrigger = (e) => {
-                        e.stopPropagation();
-                        openAttendeeOverrideModal(item);
-                    };
+            if (slotsElement) {
+                const handleModalTrigger = (e) => {
+                    e.stopPropagation();
+                    openAttendeeOverrideModal(item);
+                };
 
-                    // Desktop double-click
-                    slotsElement.addEventListener('dblclick', handleModalTrigger);
+                slotsElement.addEventListener('dblclick', handleModalTrigger);
 
-                    // Mobile double-tap tracking (detects two taps within 300ms)
-                    let lastTapTime = 0;
-                    slotsElement.addEventListener('touchend', (e) => {
-                        const currentTime = new Date().getTime();
-                        const tapLength = currentTime - lastTapTime;
-                        if (tapLength < 300 && tapLength > 0) {
-                            e.preventDefault();
-                            handleModalTrigger(e);
-                        }
-                        lastTapTime = currentTime;
-                    }, { passive: false });
-                }
+                let lastTapTime = 0;
+                slotsElement.addEventListener('touchend', (e) => {
+                    const currentTime = new Date().getTime();
+                    const tapLength = currentTime - lastTapTime;
+                    if (tapLength < 300 && tapLength > 0) {
+                        e.preventDefault();
+                        handleModalTrigger(e);
+                    }
+                    lastTapTime = currentTime;
+                }, { passive: false });
+            }
 
             card.addEventListener('click', (e) => {
                 if (e.target.closest('.btn-calendar') || e.target.closest('.btn-attendance')) return;
@@ -508,7 +522,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (doneQrBtn) doneQrBtn.addEventListener('click', closeQrDisplayModal);
     window.addEventListener('click', (e) => { if (e.target === qrDisplayModal) closeQrDisplayModal(); });
 
-    // --- 3D Carousel Physics Math & Touch/Drag ---
     function updateCardPositions(vIndex, animate = false) {
         const isMobile = window.innerWidth <= 768;
         const spacing = isMobile ? 75 : 88;
@@ -647,7 +660,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             attendeeListContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted);">Loading attendees...</p>';
             const res = await fetch(`/api/classes/${classId}/attendees`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
 
             if (!res.ok) throw new Error('Failed to fetch attendees.');
@@ -732,30 +745,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="override-form-wrapper" style="display: none;"></div>
             `;
 
-            // Clickable phone number action
             const phoneLink = itemDiv.querySelector('.attendee-phone-link');
             if (phoneLink && phoneNum) {
                 phoneLink.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     e.preventDefault();
 
-                    // Uses the project's confirmation modal to ask Call (Confirm) or Copy (Cancel) with custom button labels
                     const wantsCall = typeof window.showConfirmModal === 'function'
                         ? await window.showConfirmModal(`Choose an action for phone number: ${phoneNum}`, 'Phone Options', 'Call', 'Copy')
                         : confirm(`Call ${phoneNum}?\nClick Cancel to Copy instead.`);
 
                     if (wantsCall) {
-                        // Navigate to phone call handler
                         window.location.href = `tel:${phoneNum}`;
                     } else {
-                        // Robust copy approach with textarea fallback for all browsers/contexts
                         try {
                             if (navigator.clipboard && navigator.clipboard.writeText) {
                                 await navigator.clipboard.writeText(phoneNum);
                             } else {
                                 const textarea = document.createElement('textarea');
                                 textarea.value = phoneNum;
-                                textarea.style.position = 'fixed'; // Prevents page scrolling
+                                textarea.style.position = 'fixed';
                                 document.body.appendChild(textarea);
                                 textarea.focus();
                                 textarea.select();
@@ -787,7 +796,6 @@ document.addEventListener('DOMContentLoaded', () => {
             editBtn.addEventListener('click', () => {
                 const targetClass = activeClassForOverride || item;
 
-                // Check if current time is past the class end time before opening the override form
                 if (!canPerformOverride(targetClass)) {
                     if (typeof window.showErrorModal === 'function') {
                         window.showErrorModal('Attendance overrides are only available after the class end time.', 'Override Restricted');
@@ -834,7 +842,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             return;
                         }
 
-                        // Show loading modal to prevent double-clicking and multiple requests
                         const loadingModal = document.getElementById('loadingModal');
                         if (loadingModal) loadingModal.style.display = 'flex';
 
@@ -842,9 +849,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             const res = await fetch('/api/attendance/override', {
                                 method: 'POST',
                                 headers: {
-                                    'Content-Type': 'application/json',
-                                    'Authorization': `Bearer ${token}`
+                                    'Content-Type': 'application/json'
                                 },
+                                credentials: 'include',
                                 body: JSON.stringify({
                                     class_id: targetClass.id,
                                     student_id: att.user_id,
@@ -855,7 +862,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                             const data = await res.json();
                             
-                            // Hide loading modal before showing success modal
                             if (loadingModal) loadingModal.style.display = 'none';
 
                             if (!res.ok) throw new Error(data.message || 'Failed to submit override.');
@@ -868,7 +874,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                             fetchClassAttendees(targetClass.id);
                         } catch (err) {
-                            // Hide loading modal on error as well
                             if (loadingModal) loadingModal.style.display = 'none';
                             console.error('Override error:', err);
                             
@@ -888,4 +893,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadFilterOptions();
     fetchCoachSchedule();
-});
+}

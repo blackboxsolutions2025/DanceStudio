@@ -1,13 +1,41 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    const token = localStorage.getItem('token');
-    const userRole = localStorage.getItem('userRole');
+    // 1. Strict Database Role Verification via HttpOnly Cookies BEFORE Loading Any Data
+    try {
+        const profileRes = await fetch('/api/user/profile', {
+            credentials: 'include' // <--- Sends the secure cookie automatically[cite: 52]
+        });
 
-    if (!token || userRole !== 'admin') {
-        alert('Access denied. Administrator privileges required.');
-        window.location.href = '../LandingPage/LandingPage.html';
-        return;
+        if (!profileRes.ok) {
+            throw new Error('Failed to verify session.');
+        }
+
+        const userData = await profileRes.json();
+
+        if (userData.role !== 'admin') {
+            await handleUnauthorized('Access denied. Administrator privileges required to access Product Builder.');
+            return;
+        }
+
+        // Admin verification passed successfully. Proceed to initialize page data.
+        initProductBuilder();
+
+    } catch (err) {
+        console.error('Security Check Error:', err);
+        await handleUnauthorized('Session validation failed. Please log in again.');
     }
+});
 
+// Helper function to handle unauthorized access securely
+async function handleUnauthorized(message) {
+    if (typeof window.showErrorModal === 'function') {
+        await window.showErrorModal(message, 'Access Restricted');
+    } else {
+        alert(message);
+    }
+    window.location.href = '../LandingPage/LandingPage.html';
+}
+
+function initProductBuilder() {
     const categorySelect = document.getElementById('categoryId');
     const brandSelect = document.getElementById('brandId');
     const productNameInput = document.getElementById('productName');
@@ -43,9 +71,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadMetadata() {
         try {
             const [catRes, brandRes, attrRes] = await Promise.all([
-                fetch('/api/categories', { headers: { 'Authorization': `Bearer ${token}` } }),
-                fetch('/api/brands', { headers: { 'Authorization': `Bearer ${token}` } }),
-                fetch('/api/attributes', { headers: { 'Authorization': `Bearer ${token}` } })
+                fetch('/api/categories', { credentials: 'include' }),
+                fetch('/api/brands', { credentials: 'include' }),
+                fetch('/api/attributes', { credentials: 'include' })
             ]);
 
             if (catRes.status === 401 || brandRes.status === 401 || attrRes.status === 401) {
@@ -74,31 +102,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error) {
             console.error('Error loading metadata:', error);
         }
-    }
-
-    function renderExistingGalleryPreviews() {
-        let container = document.getElementById('existingGalleryContainer');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'existingGalleryContainer';
-            container.style.cssText = 'display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;';
-            document.getElementById('productGallery').parentNode.appendChild(container);
-        }
-        container.innerHTML = '';
-
-        existingGalleryImages.forEach((url, idx) => {
-            const thumbBox = document.createElement('div');
-            thumbBox.style.cssText = 'position: relative; width: 70px; height: 70px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-color);';
-            thumbBox.innerHTML = `
-                <img src="${url}" style="width: 100%; height: 100%; object-fit: cover;">
-                <button type="button" class="remove-gallery-img" data-index="${idx}" style="position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.7); color: #ef4444; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 0.7rem;"><i class="fa-solid fa-xmark"></i></button>
-            `;
-            thumbBox.querySelector('.remove-gallery-img').addEventListener('click', () => {
-                existingGalleryImages.splice(idx, 1);
-                renderExistingGalleryPreviews();
-            });
-            container.appendChild(thumbBox);
-        });
     }
 
     function addVariantRowFromExisting(variantData) {
@@ -134,7 +137,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (editProductId) {
             try {
                 const res = await fetch(`/api/shop/products/${editProductId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    credentials: 'include'
                 });
                 
                 if (!res.ok) throw new Error('Failed to fetch product details.');
@@ -170,7 +173,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     if (product.gallery_images && product.gallery_images.length > 0) {
                         existingGalleryImages = [...product.gallery_images];
-                        renderGalleryPreviews(); // Changed from renderExistingGalleryPreviews()
+                        renderGalleryPreviews();
                     }
 
                     variantsContainer.innerHTML = '';
@@ -326,7 +329,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     productForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        // Prevent double submission guard
         if (saveProductBtn.disabled) return;
 
         formError.textContent = '';
@@ -385,12 +387,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const response = await fetch(endpoint, {
                 method: method,
-                headers: { 'Authorization': `Bearer ${token}` },
+                credentials: 'include',
                 body: formData
             });
 
             const result = await response.json();
-            hideLoading(); // Hide loading animation before displaying success modal or alert
+            hideLoading();
 
             if (response.ok) {
                 if (typeof window.showSuccessModal === 'function') {
@@ -410,7 +412,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             formError.textContent = 'Server connection error.';
         }
     });
-
 
     productGalleryInput.addEventListener('change', (e) => {
         const files = Array.from(e.target.files);
@@ -455,7 +456,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- Variant Image Custom Space-Saving Button & Clickable Link Logic ---
     function setupVariantImageHandling(variantBox, existingImageUrl = null) {
         const uploadTrigger = variantBox.querySelector('.variant-upload-trigger');
         const fileInput = variantBox.querySelector('.variant-image-input');
@@ -519,4 +519,4 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (loadingOverlay) loadingOverlay.classList.remove('active');
         if (saveProductBtn) saveProductBtn.disabled = false;
     }
-});
+}

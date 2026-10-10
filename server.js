@@ -12,12 +12,29 @@ const app = express();
 app.use(express.json());
 
 const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Expects "Bearer <token>"
+    let token = null;
+
+    // 1. Check HttpOnly Cookie first (Most Secure)
+    if (req.headers.cookie) {
+        const cookies = req.headers.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, val] = cookie.trim().split('=');
+            if (name === 'token') {
+                token = val;
+                break;
+            }
+        }
+    }
+
+    // 2. Fallback to Authorization Header if cookie is missing
+    if (!token) {
+        const authHeader = req.headers['authorization'];
+        token = authHeader && authHeader.split(' ')[1];
+    }
 
     if (!token) return res.status(401).json({ message: 'Access denied. Please log in.' });
 
-    jwt.verify(token, process.env.JWT_SECRET, (err, decodedUser) => {
+    jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret', (err, decodedUser) => {
         if (err) return res.status(403).json({ message: 'Session expired. Please log in again.' });
         req.user = decodedUser;
         next();
@@ -208,10 +225,18 @@ app.post('/api/auth/login', async (req, res) => {
         }
 
         const token = jwt.sign(
-            { id: user.id, email: user.email, name: user.name, role: user.role }, // <-- Added role here
+            { id: user.id, email: user.email, name: user.name, role: user.role },
             process.env.JWT_SECRET || 'fallback_secret',
             { expiresIn: '7d' }
         );
+
+        // --- Set HttpOnly Secure Cookie ---
+        res.cookie('token', token, {
+            httpOnly: true,                                  // Inaccessible to client JS (prevents XSS theft)
+            secure: process.env.NODE_ENV === 'production',   // Set to true in production (HTTPS required)
+            sameSite: 'lax',                                 // Protects against CSRF
+            maxAge: 7 * 24 * 60 * 60 * 1000                  // 7 days expiration
+        });
 
         let imageUrl = null;
         if (user.profile_image) {
@@ -219,10 +244,9 @@ app.post('/api/auth/login', async (req, res) => {
             imageUrl = `${baseUrl}/profile-picture/${user.profile_image}`;
         }
 
-        // Include 'role' in the login response
+        // Note: We no longer send the raw token in the JSON response body!
         res.json({ 
             message: 'Login successful', 
-            token, 
             name: user.name, 
             role: user.role, 
             profileImage: imageUrl 
@@ -231,6 +255,15 @@ app.post('/api/auth/login', async (req, res) => {
         console.error('Login Error:', err);
         res.status(500).json({ message: 'Server error during login.' });
     }
+});
+
+// --- Logout Endpoint (Clears HttpOnly Cookie) ---
+app.post('/api/auth/logout', (req, res) => {
+    res.clearCookie('token', {
+        httpOnly: true,
+        sameSite: 'lax'
+    });
+    res.json({ message: 'Logged out successfully.' });
 });
 
 // --- Forgot Password Request Endpoint ---

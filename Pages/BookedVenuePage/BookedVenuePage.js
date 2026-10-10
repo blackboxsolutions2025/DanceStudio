@@ -1,40 +1,66 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        window.location.href = '../LoginPage/LoginPage.html';
-        return;
-    }
-
-    let userRole = localStorage.getItem('userRole') || '';
-    
-    // Fetch profile to guarantee accurate role sync
+    // 1. Strict Database Session & Role Verification via HttpOnly Cookies BEFORE Loading Any Data
+    let userRole = '';
     try {
         const profileRes = await fetch('/api/user/profile', {
-            headers: { 'Authorization': `Bearer ${token}` }
+            credentials: 'include' // <--- Sends the secure cookie automatically
         });
-        if (profileRes.ok) {
-            const profileData = await profileRes.json();
-            userRole = profileData.role || userRole;
-            localStorage.setItem('userRole', userRole);
+
+        if (!profileRes.ok) {
+            throw new Error('Failed to verify session.');
         }
+
+        const userData = await profileRes.json();
+        userRole = userData.role || '';
+        
+        // Cache safe display values in localStorage
+        localStorage.setItem('userRole', userRole);
+        localStorage.setItem('userName', userData.name || '');
+
+        // 2. Ensure only authorized roles (Students or Admins) can access this page
+        if (userRole !== 'student' && userRole !== 'admin') {
+            await handleUnauthorized('Access denied. Please log in as a student or administrator to view booked venues.');
+            return;
+        }
+
+        // Session verification passed successfully. Initialize page with admin status flag.
+        initBookedVenuesManagement(userRole === 'admin');
+
     } catch (err) {
-        console.warn('Could not verify user role:', err);
+        console.error('Security Check Error:', err);
+        await handleUnauthorized('Session validation failed. Please log in.');
     }
+});
 
-    const isAdmin = userRole === 'admin';
+// Helper function to handle unauthorized access securely
+async function handleUnauthorized(message) {
+    if (typeof window.showErrorModal === 'function') {
+        await window.showErrorModal(message, 'Access Restricted');
+    } else {
+        alert(message);
+    }
+    window.location.href = '../LoginPage/LoginPage.html';
+}
 
-    // --- Adapt UI Elements if Admin ---
+function initBookedVenuesManagement(isAdmin) {
+    // --- Adapt UI Elements based on Role ---
     if (isAdmin) {
-        document.getElementById('pageTitle').textContent = 'All Confirmed Venue Bookings - Admin - Rhythm & Soul Dance Studio';
-        document.getElementById('pageHeading').innerHTML = `<i class="fa-solid fa-building-circle-check"></i> All Confirmed Venue Bookings`;
-        document.getElementById('pageSubheading').textContent = 'View all confirmed private venue rentals across the studio.';
+        const pageTitle = document.getElementById('pageTitle');
+        const pageHeading = document.getElementById('pageHeading');
+        const pageSubheading = document.getElementById('pageSubheading');
         const bookNewBtn = document.getElementById('bookNewBtn');
+        const emptyStateTitle = document.getElementById('emptyStateTitle');
+        const emptyStateDesc = document.getElementById('emptyStateDesc');
+        const emptyStateBtn = document.getElementById('emptyStateBtn');
+
+        if (pageTitle) pageTitle.textContent = 'All Confirmed Venue Bookings - Admin - Rhythm & Soul Dance Studio';
+        if (pageHeading) pageHeading.innerHTML = `<i class="fa-solid fa-building-circle-check"></i> All Confirmed Venue Bookings`;
+        if (pageSubheading) pageSubheading.textContent = 'View all confirmed private venue rentals across the studio.';
         if (bookNewBtn) bookNewBtn.style.display = 'none';
 
-        document.getElementById('emptyStateTitle').textContent = 'No Confirmed Bookings Found';
-        document.getElementById('emptyStateDesc').textContent = 'There are no confirmed venue bookings matching this filter criteria.';
-        const emptyBtn = document.getElementById('emptyStateBtn');
-        if (emptyBtn) emptyBtn.style.display = 'none';
+        if (emptyStateTitle) emptyStateTitle.textContent = 'No Confirmed Bookings Found';
+        if (emptyStateDesc) emptyStateDesc.textContent = 'There are no confirmed venue bookings matching this filter criteria.';
+        if (emptyStateBtn) emptyStateBtn.style.display = 'none';
     }
 
     let allRentals = [];
@@ -104,7 +130,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const endpoint = isAdmin ? '/api/admin/venue-rentals' : '/api/user/rentals';
             const response = await fetch(endpoint, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
 
             if (!response.ok) {
@@ -112,11 +138,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             allRentals = await response.json();
-            loadingIndicator.style.display = 'none';
+            if (loadingIndicator) loadingIndicator.style.display = 'none';
             applyFilters();
         } catch (err) {
             console.error('Error fetching rentals:', err);
-            loadingIndicator.innerHTML = '<p style="color: #ef4444;">Failed to load venue bookings. Please try again later.</p>';
+            if (loadingIndicator) {
+                loadingIndicator.innerHTML = '<p style="color: #ef4444;">Failed to load venue bookings. Please try again later.</p>';
+            }
         }
     }
 
@@ -230,13 +258,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Render Rentals Grid ---
     function renderRentals(rentalsToRender) {
+        if (!rentalsGrid) return;
+
         if (rentalsToRender.length === 0) {
-            emptyState.style.display = 'block';
+            if (emptyState) emptyState.style.display = 'block';
             rentalsGrid.innerHTML = '';
             return;
         }
 
-        emptyState.style.display = 'none';
+        if (emptyState) emptyState.style.display = 'none';
         rentalsGrid.innerHTML = rentalsToRender.map(rental => {
             const dateObj = new Date(rental.rental_date);
             const formattedDate = dateObj.toLocaleDateString('en-US', {
@@ -323,4 +353,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     loadVenues();
     fetchRentals();
-});
+}

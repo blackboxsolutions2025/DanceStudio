@@ -1,22 +1,8 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    const token = localStorage.getItem('token');
-    
-    if (!token) {
-        if (typeof window.showErrorModal === 'function') {
-            window.showErrorModal('Access denied. Please log in as an administrator.', 'Unauthorized Access', () => {
-                window.location.href = '../LandingPage/LandingPage.html';
-            });
-        } else {
-            alert('Access denied. Please log in as an administrator.');
-            window.location.href = '../LandingPage/LandingPage.html';
-        }
-        return;
-    }
-
     try {
-        // Always check the user's role directly through the database via the API before loading any data
+        // Fetch user profile using the secure HttpOnly cookie automatically attached via credentials: 'include'
         const response = await fetch('/api/user/profile', {
-            headers: { 'Authorization': `Bearer ${token}` }
+            credentials: 'include'
         });
 
         if (!response.ok) {

@@ -1,10 +1,39 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Helper to handle unauthorized sessions gracefully
+    async function handleUnauthorized(message) {
+        console.warn(message);
+        localStorage.clear();
         window.location.href = '../LoginPage/LoginPage.html';
-        return;
     }
 
+    // 1. Strict Database Role Verification via HttpOnly Cookies BEFORE Loading Any Data
+    try {
+        const profileRes = await fetch('/api/user/profile', {
+            credentials: 'include' // <--- Sends the secure cookie automatically
+        });
+
+        if (!profileRes.ok) {
+            throw new Error('Failed to verify session.');
+        }
+
+        const userData = await profileRes.json();
+
+        // 2. Strict Role Check: Ensure only students can access this page
+        if (userData.role !== 'student') {
+            await handleUnauthorized('Access denied. Student privileges required to access Student Attendance.');
+            return;
+        }
+
+        // Student verification passed successfully. Proceed to initialize page data.
+        initStudentAttendancePage();
+
+    } catch (err) {
+        console.error('Security Check Error:', err);
+        await handleUnauthorized('Session validation failed. Please log in again.');
+    }
+});
+
+function initStudentAttendancePage() {
     let allAttendanceData = [];
 
     const container = document.getElementById('attendanceCardsContainer');
@@ -101,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
 
             const response = await fetch('/api/user/schedule', {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
 
             if (!response.ok) throw new Error('Failed to fetch attendance schedule.');
@@ -162,7 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        // Date range validation rules
         if (rangeMode === 'past' && filterStartDate && filterStartDate.value) {
             const startVal = new Date(filterStartDate.value);
             startVal.setHours(0, 0, 0, 0);
@@ -195,16 +223,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return { ...item, computedStatus, isPast };
         });
 
-        // Compute Metrics on all processed items
         const total = processed.length;
         const attended = processed.filter(i => i.computedStatus === 'completed' || i.computedStatus === 'timed_in').length;
         const missed = processed.filter(i => i.computedStatus === 'absent').length;
 
-        metricTotalClasses.textContent = total;
-        metricAttendedClasses.textContent = attended;
-        metricMissedClasses.textContent = missed;
+        if (metricTotalClasses) metricTotalClasses.textContent = total;
+        if (metricAttendedClasses) metricAttendedClasses.textContent = attended;
+        if (metricMissedClasses) metricMissedClasses.textContent = missed;
 
-        // Apply filters
         const filtered = processed.filter(item => {
             const clsDate = new Date(item.schedule_date);
             clsDate.setHours(0, 0, 0, 0);
@@ -336,7 +362,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             return `
                 <div class="attendance-art-card ${statusClass}">
-                    <!-- Card Top Header -->
                     <div class="card-header-flex">
                         <div class="class-title-area">
                             <span class="class-date-badge"><i class="fa-solid fa-calendar-day"></i> ${formattedDate}</span>
@@ -347,7 +372,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
 
-                    <!-- Details Grid -->
                     <div class="card-details-box">
                         <div class="detail-block">
                             <span class="detail-label"><i class="fa-solid fa-music"></i> Genre</span>
@@ -367,10 +391,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
 
-                    <!-- Coach Override Notice (If Applicable) -->
                     ${overrideNoticeHtml}
 
-                    <!-- Time Comparison Widget -->
                     <div class="art-card-timeline">
                         <div class="timeline-title">
                             <i class="fa-solid fa-chart-line"></i> Attendance Comparison
@@ -401,4 +423,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadFilterOptions();
     fetchAttendanceData();
-});
+}

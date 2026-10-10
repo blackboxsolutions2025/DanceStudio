@@ -1,20 +1,48 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    const token = localStorage.getItem('token');
-    const userRole = localStorage.getItem('userRole');
+    // 1. Strict Database Role Verification via HttpOnly Cookies BEFORE Loading Any Data
+    try {
+        const profileRes = await fetch('/api/user/profile', {
+            credentials: 'include' // <--- Sends the secure cookie automatically
+        });
 
-    if (!token || userRole !== 'admin') {
-        alert('Access denied. Administrator privileges required.');
-        window.location.href = '../LoginPage/LoginPage.html';
-        return;
+        if (!profileRes.ok) {
+            throw new Error('Failed to verify session.');
+        }
+
+        const userData = await profileRes.json();
+
+        if (userData.role !== 'admin') {
+            await handleUnauthorized('Access denied. Administrator privileges required to access Venue Management.');
+            return;
+        }
+
+        // Admin verification passed successfully. Proceed to initialize page data.
+        initVenueManagement();
+
+    } catch (err) {
+        console.error('Security Check Error:', err);
+        await handleUnauthorized('Session validation failed. Please log in again.');
     }
+});
 
+// Helper function to handle unauthorized access securely
+async function handleUnauthorized(message) {
+    if (typeof window.showErrorModal === 'function') {
+        await window.showErrorModal(message, 'Access Restricted');
+    } else {
+        alert(message);
+    }
+    window.location.href = '../LandingPage/LandingPage.html';
+}
+
+function initVenueManagement() {
     const venueTableBody = document.getElementById('venueTableBody');
 
     async function fetchVenues() {
         try {
             // Fetch from admin endpoint to see both active and inactive venues
             const res = await fetch('/api/admin/venues', {
-                headers: { 'Authorization': `Bearer ${token}` }
+                credentials: 'include'
             });
             if (!res.ok) throw new Error('Failed to fetch venues.');
             const venues = await res.json();
@@ -85,12 +113,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!confirmed) return;
 
         try {
+            // Fixed: Moved credentials out of headers and into the top-level fetch configuration object
             const res = await fetch(`/api/admin/venues/${venueId}/status`, {
                 method: 'PUT',
                 headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
+                    'Content-Type': 'application/json'
                 },
+                credentials: 'include', 
                 body: JSON.stringify({ is_active: newStatus })
             });
 
@@ -115,4 +144,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     fetchVenues();
-});
+}

@@ -1,18 +1,41 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    // Check if user is authenticated and is an admin
-    const token = localStorage.getItem('token');
-    const userRole = localStorage.getItem('userRole');
+    // 1. Strict Database Role Verification via HttpOnly Cookies BEFORE Loading Any Data
+    try {
+        const profileRes = await fetch('/api/user/profile', {
+            credentials: 'include' // <--- Sends the secure cookie automatically[cite: 52]
+        });
 
-    if (!token || userRole !== 'admin') {
-        if (typeof window.showErrorModal === 'function') {
-            await window.showErrorModal('Access denied. Administrator privileges required.', 'Unauthorized');
-        } else {
-            alert('Access denied. Administrator privileges required.');
+        if (!profileRes.ok) {
+            throw new Error('Failed to verify session.');
         }
-        window.location.href = '../LoginPage/LoginPage.html';
-        return;
-    }
 
+        const userData = await profileRes.json();
+
+        if (userData.role !== 'admin') {
+            await handleUnauthorized('Access denied. Administrator privileges required to access Class Schedule Builder.');
+            return;
+        }
+
+        // Admin verification passed successfully. Proceed to initialize page data.
+        initClassScheduleBuilder();
+
+    } catch (err) {
+        console.error('Security Check Error:', err);
+        await handleUnauthorized('Session validation failed. Please log in again.');
+    }
+});
+
+// Helper function to handle unauthorized access securely
+async function handleUnauthorized(message) {
+    if (typeof window.showErrorModal === 'function') {
+        await window.showErrorModal(message, 'Access Restricted');
+    } else {
+        alert(message);
+    }
+    window.location.href = '../LandingPage/LandingPage.html';
+}
+
+function initClassScheduleBuilder() {
     const genreSelect = document.getElementById('genreid');
     const coachSelect = document.getElementById('coachid');
     const venueSelect = document.getElementById('venueid');
@@ -42,8 +65,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 1. Fetch Relational Dropdown Data on Load
     async function fetchDropdownData() {
         try {
-            // Fetch Genres[cite: 4]
-            const genresRes = await fetch('/api/genres');
+            // Fetch Genres[cite: 4, 72]
+            const genresRes = await fetch('/api/genres', { credentials: 'include' });
             if (genresRes.ok) {
                 const genres = await genresRes.json();
                 genres.forEach(genre => {
@@ -54,8 +77,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             }
 
-            // Fetch Coaches[cite: 4]
-            const coachesRes = await fetch('/api/coaches');
+            // Fetch Coaches[cite: 4, 72]
+            const coachesRes = await fetch('/api/coaches', { credentials: 'include' });
             if (coachesRes.ok) {
                 const coaches = await coachesRes.json();
                 coaches.forEach(coach => {
@@ -66,8 +89,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             }
 
-            // Fetch Venues[cite: 4]
-            const venuesRes = await fetch('/api/venues');
+            // Fetch Venues[cite: 4, 72]
+            const venuesRes = await fetch('/api/venues', { credentials: 'include' });
             if (venuesRes.ok) {
                 const venues = await venuesRes.json();
                 venues.forEach(venue => {
@@ -85,7 +108,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    await fetchDropdownData();
+    fetchDropdownData();
 
     // Helper: Format minutes to 12-hour AM/PM string
     const formatTime = (totalMins) => {
@@ -118,7 +141,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         try {
             // Fetch both classes and confirmed venue rentals for this date and venue
-            const res = await fetch(`/api/venue-rentals/schedule?venue_id=${selectedVenueId}&date=${selectedDate}`);
+            const res = await fetch(`/api/venue-rentals/schedule?venue_id=${selectedVenueId}&date=${selectedDate}`, {
+                credentials: 'include'
+            });
             const data = await res.json();
             const classes = data.classes || [];
             const rentals = data.rentals || [];
@@ -299,12 +324,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         try {
+            // Fixed: Moved credentials out of headers and into the top-level fetch configuration object
             const response = await fetch('/api/classes', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify(classData)
             });
 
@@ -333,4 +359,4 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
     });
-});
+}
