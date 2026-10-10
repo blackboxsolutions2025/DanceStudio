@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Strict Database Role Verification via HttpOnly Cookies BEFORE Loading Any Data
     try {
-        const profileRes = await fetch('/api/user/profile', {
+        const profileRes = await secureFetch('/api/user/profile', {
             credentials: 'include' // <--- Sends the secure cookie automatically
         });
 
@@ -41,7 +41,7 @@ function initVenueManagement() {
     async function fetchVenues() {
         try {
             // Fetch from admin endpoint to see both active and inactive venues
-            const res = await fetch('/api/admin/venues', {
+            const res = await secureFetch('/api/admin/venues', {
                 credentials: 'include'
             });
             if (!res.ok) throw new Error('Failed to fetch venues.');
@@ -114,7 +114,7 @@ function initVenueManagement() {
 
         try {
             // Fixed: Moved credentials out of headers and into the top-level fetch configuration object
-            const res = await fetch(`/api/admin/venues/${venueId}/status`, {
+            const res = await secureFetch(`/api/admin/venues/${venueId}/status`, {
                 method: 'PUT',
                 headers: { 
                     'Content-Type': 'application/json'

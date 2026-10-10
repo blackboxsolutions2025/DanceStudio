@@ -48,8 +48,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const totalPriceDisplay = document.getElementById('totalPriceDisplay');
     const proceedCheckoutBtn = document.getElementById('proceedCheckoutBtn');
 
-    const token = localStorage.getItem('token');
-
     // Set minimum date to today
     const today = new Date().toISOString().split('T')[0];
     rentalDate.min = today;
@@ -60,7 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Fetch Venue Details & Images
     try {
-        const res = await fetch(`/api/venues/${venueId}`);
+        const res = await secureFetch(`/api/venues/${venueId}`);
         if (!res.ok) throw new Error('Venue not found.');
         venueData = await res.json();
 
@@ -144,7 +142,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         try {
-            const res = await fetch(`/api/venue-rentals/schedule?venue_id=${venueId}&date=${selectedDate}`);
+            const res = await secureFetch(`/api/venue-rentals/schedule?venue_id=${venueId}&date=${selectedDate}`);
             const data = await res.json();
 
             const classes = data.classes || [];
@@ -284,8 +282,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     endTimeInput.addEventListener('input', calculatePricing);
 
     // Proceed to Checkout / Booking
-    proceedCheckoutBtn.addEventListener('click', async () => {
-        if (!token) {
+proceedCheckoutBtn.addEventListener('click', async () => {
+        // Check if user is logged in via HttpOnly cookie using secureFetch
+        try {
+            const profileRes = await secureFetch('/api/user/profile');
+            if (!profileRes.ok) {
+                triggerErrorModal('Please log in to rent a venue.', 'Authentication Required');
+                setTimeout(() => {
+                    window.location.href = '../LoginPage/LoginPage.html';
+                }, 1500);
+                return;
+            }
+        } catch (err) {
+            console.error('Auth check error:', err);
             triggerErrorModal('Please log in to rent a venue.', 'Authentication Required');
             setTimeout(() => {
                 window.location.href = '../LoginPage/LoginPage.html';
@@ -326,12 +335,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const totalPrice = (diffMins / 60) * hourlyRateVal;
 
         try {
-            const res = await fetch('/api/venue-rentals', {
+            const res = await secureFetch('/api/venue-rentals', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
                 body: JSON.stringify({
                     venue_id: venueId,
                     rental_date: date,
@@ -342,6 +347,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             const data = await res.json();
+            
+            if (res.status === 401 || res.status === 403) {
+                triggerErrorModal('Please log in to rent a venue.', 'Authentication Required');
+                setTimeout(() => {
+                    window.location.href = '../LoginPage/LoginPage.html';
+                }, 1500);
+                return;
+            }
+
             if (res.ok && data.checkoutUrl) {
                 window.location.href = data.checkoutUrl;
             } else {

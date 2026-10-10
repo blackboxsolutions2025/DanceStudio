@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 1. Verify Admin Role securely via HttpOnly cookie
     try {
-        const profileRes = await fetch('/api/user/profile', {
+        const profileRes = await secureFetch('/api/user/profile', {
             credentials: 'include'
         });
         
@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         try {
-            const res = await fetch('/api/admin/coaches', {
+            const res = await secureFetch('/api/admin/coaches', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

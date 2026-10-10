@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Load Venues
     try {
-        const res = await fetch('/api/venues');
+        const res = await secureFetch('/api/venues');
         const venues = await res.json();
         
         venuesGrid.innerHTML = '';

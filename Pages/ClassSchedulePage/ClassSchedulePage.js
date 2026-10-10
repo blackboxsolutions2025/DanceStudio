@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadFilterOptions() {
         try {
             const [genreRes, coachRes, venueRes] = await Promise.all([
-                fetch('/api/genres'), fetch('/api/coaches'), fetch('/api/venues')
+                secureFetch('/api/genres'), secureFetch('/api/coaches'), secureFetch('/api/venues')
             ]);
 
             if (genreRes.ok && filterGenre) {
@@ -88,9 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchClasses() {
         try {
-            const token = localStorage.getItem('token');
-            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-            const response = await fetch('/api/classes', { headers });
+            const response = await secureFetch('/api/classes');
             
             if (response.ok) {
                 allClasses = await response.json();

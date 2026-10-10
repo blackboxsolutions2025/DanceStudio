@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Load user profile data and coach class image & position
     const loadUserData = async () => {
         try {
-            const response = await fetch('/api/user/profile', {
+            const response = await secureFetch('/api/user/profile', {
                 credentials: 'include'
             });
             if (!response.ok) throw new Error('Failed to load profile.');
@@ -202,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const response = await fetch('/api/user/profile', {
+            const response = await secureFetch('/api/user/profile', {
                 method: 'PUT',
                 credentials: 'include',
                 body: formData
@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('imagePosition', `${Math.round(posX)}% ${Math.round(posY)}%`);
 
             try {
-                const response = await fetch('/api/coach/class-image', {
+                const response = await secureFetch('/api/coach/class-image', {
                     method: 'PUT',
                     credentials: 'include',
                     body: formData
@@ -333,7 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Updating Password...';
 
         try {
-            const response = await fetch('/api/user/password', {
+            const response = await secureFetch('/api/user/password', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',

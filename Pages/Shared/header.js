@@ -1,4 +1,32 @@
 (async () => {
+
+    // --- Define Global Helpers Immediately ---
+    window.getCsrfToken = function() {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, val] = cookie.trim().split('=');
+            if (name === 'csrf_token') return val;
+        }
+        return '';
+    };
+
+    window.secureFetch = async function(url, options = {}) {
+        options.credentials = 'include';
+        
+        const method = (options.method || 'GET').toUpperCase();
+        if (['POST', 'PUT', 'DELETE'].includes(method)) {
+            options.headers = {
+                ...options.headers,
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': window.getCsrfToken()
+            };
+        }
+
+        return fetch(url, options);
+    };
+    
+    // ----------------------------------------
+
     if (!document.querySelector('link[href*="font-awesome"]')) {
         const fontAwesome = document.createElement('link');
         fontAwesome.rel = 'stylesheet';

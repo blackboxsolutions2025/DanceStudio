@@ -1,17 +1,12 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
     const classId = urlParams.get('classId');
-    const token = localStorage.getItem('token');
 
-    // Instantly notify backend to update payment and enrollment status to failed/cancelled
-    if (classId && token) {
+    // Instantly notify backend to update payment and enrollment status to failed/cancelled using secureFetch
+    if (classId) {
         try {
-            await fetch('/api/checkout/fail', {
+            await secureFetch('/api/checkout/fail', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
                 body: JSON.stringify({ class_id: classId })
             });
         } catch (err) {

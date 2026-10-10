@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 1. Strict Database Role Verification via HttpOnly Cookies BEFORE Loading Any Data
     try {
-        const profileRes = await fetch('/api/user/profile', {
+        const profileRes = await secureFetch('/api/user/profile', {
             credentials: 'include' // <--- Sends the secure HttpOnly cookie automatically
         });
 
@@ -93,7 +93,7 @@ function initStudentSchedulePage() {
     async function loadFilterOptions() {
         try {
             const [genreRes, coachRes, venueRes] = await Promise.all([
-                fetch('/api/genres'), fetch('/api/coaches'), fetch('/api/venues')
+                secureFetch('/api/genres'), secureFetch('/api/coaches'), secureFetch('/api/venues')
             ]);
 
             if (genreRes.ok && filterGenre) {
@@ -127,7 +127,7 @@ function initStudentSchedulePage() {
     // --- Fetch User Confirmed Schedule ---
     async function fetchUserSchedule() {
         try {
-            const res = await fetch('/api/user/schedule', {
+            const res = await secureFetch('/api/user/schedule', {
                 credentials: 'include'
             });
 
@@ -417,7 +417,7 @@ function initStudentSchedulePage() {
         if (loadingModal) loadingModal.style.display = 'flex';
 
         try {
-            const res = await fetch('/api/attendance/scan', {
+            const res = await secureFetch('/api/attendance/scan', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

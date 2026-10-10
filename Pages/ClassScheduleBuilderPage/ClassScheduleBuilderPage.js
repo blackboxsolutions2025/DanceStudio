@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Strict Database Role Verification via HttpOnly Cookies BEFORE Loading Any Data
     try {
-        const profileRes = await fetch('/api/user/profile', {
+        const profileRes = await secureFetch('/api/user/profile', {
             credentials: 'include' // <--- Sends the secure cookie automatically[cite: 52]
         });
 
@@ -66,7 +66,7 @@ function initClassScheduleBuilder() {
     async function fetchDropdownData() {
         try {
             // Fetch Genres[cite: 4, 72]
-            const genresRes = await fetch('/api/genres', { credentials: 'include' });
+            const genresRes = await secureFetch('/api/genres', { credentials: 'include' });
             if (genresRes.ok) {
                 const genres = await genresRes.json();
                 genres.forEach(genre => {
@@ -78,7 +78,7 @@ function initClassScheduleBuilder() {
             }
 
             // Fetch Coaches[cite: 4, 72]
-            const coachesRes = await fetch('/api/coaches', { credentials: 'include' });
+            const coachesRes = await secureFetch('/api/coaches', { credentials: 'include' });
             if (coachesRes.ok) {
                 const coaches = await coachesRes.json();
                 coaches.forEach(coach => {
@@ -90,7 +90,7 @@ function initClassScheduleBuilder() {
             }
 
             // Fetch Venues[cite: 4, 72]
-            const venuesRes = await fetch('/api/venues', { credentials: 'include' });
+            const venuesRes = await secureFetch('/api/venues', { credentials: 'include' });
             if (venuesRes.ok) {
                 const venues = await venuesRes.json();
                 venues.forEach(venue => {
@@ -141,7 +141,7 @@ function initClassScheduleBuilder() {
 
         try {
             // Fetch both classes and confirmed venue rentals for this date and venue
-            const res = await fetch(`/api/venue-rentals/schedule?venue_id=${selectedVenueId}&date=${selectedDate}`, {
+            const res = await secureFetch(`/api/venue-rentals/schedule?venue_id=${selectedVenueId}&date=${selectedDate}`, {
                 credentials: 'include'
             });
             const data = await res.json();
@@ -325,7 +325,7 @@ function initClassScheduleBuilder() {
 
         try {
             // Fixed: Moved credentials out of headers and into the top-level fetch configuration object
-            const response = await fetch('/api/classes', {
+            const response = await secureFetch('/api/classes', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

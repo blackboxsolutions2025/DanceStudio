@@ -132,6 +132,41 @@ const transporter = nodemailer.createTransport({
 
 const crypto = require('crypto');
 
+// --- CSRF Protection Middleware (Double Submit Cookie Pattern) ---
+const verifyCsrf = (req, res, next) => {
+    // Skip CSRF check for safe methods, webhooks, and public auth routes (/api/auth/login, signup, etc.)
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || 
+        req.path.startsWith('/api/webhooks/') || 
+        req.path.startsWith('/api/auth/')) {
+        return next();
+    }
+
+    let csrfCookie = null;
+    let authCookie = null;
+
+    if (req.headers.cookie) {
+        const cookies = req.headers.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, val] = cookie.trim().split('=');
+            if (name === 'csrf_token') csrfCookie = val;
+            if (name === 'token') authCookie = val;
+        }
+    }
+
+    if (!authCookie) return next();
+
+    const csrfHeader = req.headers['x-csrf-token'];
+
+    if (!csrfCookie || !csrfHeader || csrfCookie !== csrfHeader) {
+        return res.status(403).json({ message: 'Access denied: Invalid or missing CSRF token.' });
+    }
+
+    next();
+};
+
+// Apply verifyCsrf globally for all routes after express.json()
+app.use(verifyCsrf);
+
 // --- Signup Endpoint with Real Email Dispatch ---
 app.post('/api/auth/signup', async (req, res) => {
     try {
@@ -230,12 +265,25 @@ app.post('/api/auth/login', async (req, res) => {
             { expiresIn: '7d' }
         );
 
-        // --- Set HttpOnly Secure Cookie ---
+        // Generate a random cryptographic CSRF token
+        const csrfToken = crypto.randomBytes(32).toString('hex');
+
+        // 1. Secure HttpOnly Token Cookie (Inaccessible to client JS)
         res.cookie('token', token, {
-            httpOnly: true,                                  // Inaccessible to client JS (prevents XSS theft)
-            secure: process.env.NODE_ENV === 'production',   // Set to true in production (HTTPS required)
-            sameSite: 'lax',                                 // Protects against CSRF
-            maxAge: 7 * 24 * 60 * 60 * 1000                  // 7 days expiration
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        });
+
+        // 2. Companion CSRF Token Cookie (Readable by client JS to echo in headers)
+        res.cookie('csrf_token', csrfToken, {
+            httpOnly: false, // Accessible to JS so it can be attached to fetch headers
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
         let imageUrl = null;
@@ -244,7 +292,6 @@ app.post('/api/auth/login', async (req, res) => {
             imageUrl = `${baseUrl}/profile-picture/${user.profile_image}`;
         }
 
-        // Note: We no longer send the raw token in the JSON response body!
         res.json({ 
             message: 'Login successful', 
             name: user.name, 
@@ -259,10 +306,8 @@ app.post('/api/auth/login', async (req, res) => {
 
 // --- Logout Endpoint (Clears HttpOnly Cookie) ---
 app.post('/api/auth/logout', (req, res) => {
-    res.clearCookie('token', {
-        httpOnly: true,
-        sameSite: 'lax'
-    });
+    res.clearCookie('token', { httpOnly: true, sameSite: 'lax', path: '/' });
+    res.clearCookie('csrf_token', { httpOnly: false, sameSite: 'lax', path: '/' });
     res.json({ message: 'Logged out successfully.' });
 });
 
@@ -581,14 +626,33 @@ app.put('/api/coach/class-image', authenticateToken, uploadCardProfile.single('c
 });
 
 // --- Get All Classes with Filters ---
+// --- Get All Classes with Filters ---
 app.get('/api/classes', async (req, res) => {
     try {
         let userId = 0;
-        const authHeader = req.headers['authorization'];
-        const token = authHeader && authHeader.split(' ')[1];
+        let token = null;
+
+        // 1. Check HttpOnly Cookie first
+        if (req.headers.cookie) {
+            const cookies = req.headers.cookie.split(';');
+            for (let cookie of cookies) {
+                const [name, val] = cookie.trim().split('=');
+                if (name === 'token') {
+                    token = val;
+                    break;
+                }
+            }
+        }
+
+        // 2. Fallback to Authorization Header
+        if (!token) {
+            const authHeader = req.headers['authorization'];
+            token = authHeader && authHeader.split(' ')[1];
+        }
+
         if (token) {
             try {
-                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
                 userId = decoded.id;
             } catch (err) {
                 // Invalid or expired token, treat as guest
@@ -2643,7 +2707,39 @@ app.get('/api/shop/products/:id', authenticateToken, async (req, res) => {
     }
 });
 
+// --- Get Single Class Details by ID ---
+app.get('/api/classes/:id', async (req, res) => {
+    try {
+        const classId = req.params.id;
+        const query = `
+            SELECT c.*, g.name AS genre_name, ch.name AS coach_name, v.name AS venue_name, 
+                   u.profile_image AS coach_image, ch.classimage AS coach_class_image, ch.image_position AS coach_image_position
+            FROM classes c 
+            JOIN genre g ON c.genreid = g.id 
+            JOIN coach ch ON c.coachid = ch.id 
+            JOIN venue v ON c.venueid = v.id 
+            LEFT JOIN users u ON ch.user_id = u.id 
+            WHERE c.id = ?
+        `;
+        const [classes] = await pool.execute(query, [classId]);
+        
+        if (classes.length === 0) {
+            return res.status(404).json({ message: 'Class not found.' });
+        }
 
+        const cls = classes[0];
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const formattedClass = {
+            ...cls,
+            coach_class_image: cls.coach_class_image ? `${baseUrl}/cardprofile/${cls.coach_class_image}` : null
+        };
+
+        res.json(formattedClass);
+    } catch (err) {
+        console.error('Fetch Single Class Error:', err);
+        res.status(500).json({ message: 'Server error while fetching class details.' });
+    }
+});
 
 
 

@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         // Fetch user profile using the secure HttpOnly cookie automatically attached via credentials: 'include'
-        const response = await fetch('/api/user/profile', {
+        const response = await secureFetch('/api/user/profile', {
             credentials: 'include'
         });
 

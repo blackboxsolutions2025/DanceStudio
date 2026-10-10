@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load Categories
     async function loadCategories() {
         try {
-            const res = await fetch('/api/categories', {
+            const res = await secureFetch('/api/categories', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.status === 401 || res.status === 403) {
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load Brands
     async function loadBrands() {
         try {
-            const res = await fetch('/api/brands', {
+            const res = await secureFetch('/api/brands', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.status === 401 || res.status === 403) {
@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load Attributes
     async function loadAttributes() {
         try {
-            const res = await fetch('/api/attributes', {
+            const res = await secureFetch('/api/attributes', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.status === 401 || res.status === 403) {
@@ -157,7 +157,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const method = editingId ? 'PUT' : 'POST';
 
         try {
-            const res = await fetch(url, {
+            const res = await secureFetch(url, {
                 method: method,
                 headers: { 
                     'Content-Type': 'application/json',
@@ -211,7 +211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const method = editingId ? 'PUT' : 'POST';
 
         try {
-            const res = await fetch(url, {
+            const res = await secureFetch(url, {
                 method: method,
                 headers: { 
                     'Content-Type': 'application/json',
@@ -265,7 +265,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const method = editingId ? 'PUT' : 'POST';
 
         try {
-            const res = await fetch(url, {
+            const res = await secureFetch(url, {
                 method: method,
                 headers: { 
                     'Content-Type': 'application/json',

@@ -3,7 +3,7 @@ let galleryItems = []; // Array of { id: null, file: null, url: null }
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Strict Database Role Verification via HttpOnly Cookies BEFORE Loading Any Data
     try {
-        const profileRes = await fetch('/api/user/profile', {
+        const profileRes = await secureFetch('/api/user/profile', {
             credentials: 'include' // <--- Sends the secure cookie automatically
         });
 
@@ -66,7 +66,7 @@ function initVenueBuilder() {
         // Fetch venue details for editing[cite: 75]
         (async () => {
             try {
-                const res = await fetch(`/api/venues/${venueId}`, {
+                const res = await secureFetch(`/api/venues/${venueId}`, {
                     credentials: 'include'
                 });
                 if (!res.ok) throw new Error('Failed to load venue details.');
@@ -144,7 +144,7 @@ function initVenueBuilder() {
             const method = venueId ? 'PUT' : 'POST';
 
             // Fixed: Moved credentials out of headers and into root fetch configuration object
-            const res = await fetch(url, {
+            const res = await secureFetch(url, {
                 method: method,
                 credentials: 'include',
                 body: formData

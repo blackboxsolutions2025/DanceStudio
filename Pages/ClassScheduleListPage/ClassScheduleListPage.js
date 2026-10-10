@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Strict Database Role Verification via HttpOnly Cookies BEFORE Loading Any Data
     try {
-        const profileRes = await fetch('/api/user/profile', {
+        const profileRes = await secureFetch('/api/user/profile', {
             credentials: 'include' // <--- Sends the secure cookie automatically
         });
 
@@ -83,7 +83,7 @@ function initClassScheduleManagement() {
     // 1. Populate Dropdowns from API endpoints
     async function loadFilterOptions() {
         try {
-            const coachesRes = await fetch('/api/coaches');
+            const coachesRes = await secureFetch('/api/coaches');
             if (coachesRes.ok) {
                 const coaches = await coachesRes.json();
                 coaches.forEach(coach => {
@@ -95,7 +95,7 @@ function initClassScheduleManagement() {
                 });
             }
 
-            const genresRes = await fetch('/api/genres');
+            const genresRes = await secureFetch('/api/genres');
             if (genresRes.ok) {
                 const genres = await genresRes.json();
                 genres.forEach(genre => {
@@ -107,7 +107,7 @@ function initClassScheduleManagement() {
                 });
             }
 
-            const venuesRes = await fetch('/api/venues');
+            const venuesRes = await secureFetch('/api/venues');
             if (venuesRes.ok) {
                 const venues = await venuesRes.json();
                 venues.forEach(venue => {
@@ -132,7 +132,7 @@ function initClassScheduleManagement() {
             if (activeFilters.genre) params.append('genre', activeFilters.genre);
             if (activeFilters.venue) params.append('venue', activeFilters.venue);
 
-            const response = await fetch(`/api/classes?${params.toString()}`);
+            const response = await secureFetch(`/api/classes?${params.toString()}`);
             if (!response.ok) throw new Error('Failed to fetch classes.');
 
             const classes = await response.json();
@@ -278,7 +278,7 @@ function initClassScheduleManagement() {
         attendeesModal.classList.add('active');
 
         try {
-            const res = await fetch(`/api/classes/${classId}/attendees`, {
+            const res = await secureFetch(`/api/classes/${classId}/attendees`, {
                 credentials: 'include' // Uses HttpOnly cookie session securely
             });
             if (!res.ok) throw new Error('Failed to fetch attendees.');

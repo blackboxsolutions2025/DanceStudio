@@ -35,7 +35,6 @@
             </section>
 
             <section class="student-card">
-                <!-- Top content wrapper -->
                 <div class="student-card-content">
                     <h2><i class="fa-solid fa-user"></i> Student Information</h2>
                     <div id="studentInfoContent" class="student-info-box">
@@ -45,7 +44,6 @@
                     </div>
                 </div>
                 
-                <!-- Action buttons pinned to the bottom -->
                 <div class="checkout-buttons">
                     <button id="btnCancelCheckout" class="btn-checkout btn-cancel">Cancel</button>
                     <button id="btnProceedPayment" class="btn-checkout btn-primary">
@@ -56,19 +54,7 @@
         </div>
     </main>
 
-    <!-- Add this modal at the bottom of main/body -->
-    <div id="confirmationModal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <h2>Confirm Enrollment Payment</h2>
-            <p>Please note that all class payments are <strong>non-refundable</strong> once processed. Would you like to continue to PayMongo?</p>
-            <div class="modal-actions">
-                <button id="btnCancelModal" class="btn-secondary">Cancel</button>
-                <button id="btnConfirmModal" class="btn-primary">Proceed to Payment</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Global header logic -->
+    <!-- Global header logic (automatically injects confirmation-modal, success-modal, and error-modal) -->
     <script src="../Shared/header.js"></script>
     <script src="ClassCheckoutPage.js"></script>
 </body>

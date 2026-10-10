@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Strict Database Role Verification via HttpOnly Cookies BEFORE Loading Any Data
     try {
-        const profileRes = await fetch('/api/user/profile', {
+        const profileRes = await secureFetch('/api/user/profile', {
             credentials: 'include' // <--- Sends the secure cookie automatically[cite: 52]
         });
 
@@ -71,9 +71,9 @@ function initProductBuilder() {
     async function loadMetadata() {
         try {
             const [catRes, brandRes, attrRes] = await Promise.all([
-                fetch('/api/categories', { credentials: 'include' }),
-                fetch('/api/brands', { credentials: 'include' }),
-                fetch('/api/attributes', { credentials: 'include' })
+                secureFetch('/api/categories', { credentials: 'include' }),
+                secureFetch('/api/brands', { credentials: 'include' }),
+                secureFetch('/api/attributes', { credentials: 'include' })
             ]);
 
             if (catRes.status === 401 || brandRes.status === 401 || attrRes.status === 401) {
@@ -136,7 +136,7 @@ function initProductBuilder() {
 
         if (editProductId) {
             try {
-                const res = await fetch(`/api/shop/products/${editProductId}`, {
+                const res = await secureFetch(`/api/shop/products/${editProductId}`, {
                     credentials: 'include'
                 });
                 
@@ -385,7 +385,7 @@ function initProductBuilder() {
         const method = editProductId ? 'PUT' : 'POST';
 
         try {
-            const response = await fetch(endpoint, {
+            const response = await secureFetch(endpoint, {
                 method: method,
                 credentials: 'include',
                 body: formData

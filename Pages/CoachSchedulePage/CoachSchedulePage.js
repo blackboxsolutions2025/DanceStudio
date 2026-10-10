@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Strict Database Role Verification via HttpOnly Cookies BEFORE Loading Any Data
     try {
-        const profileRes = await fetch('/api/user/profile', {
+        const profileRes = await secureFetch('/api/user/profile', {
             credentials: 'include' // <--- Sends the secure HttpOnly cookie automatically
         });
 
@@ -99,7 +99,7 @@ function initCoachSchedulePage() {
     async function loadFilterOptions() {
         try {
             const [genreRes, venueRes] = await Promise.all([
-                fetch('/api/genres'), fetch('/api/venues')
+                secureFetch('/api/genres'), secureFetch('/api/venues')
             ]);
 
             if (genreRes.ok && filterGenre) {
@@ -124,7 +124,7 @@ function initCoachSchedulePage() {
 
     async function fetchCoachSchedule() {
         try {
-            const res = await fetch('/api/coach/schedule', {
+            const res = await secureFetch('/api/coach/schedule', {
                 credentials: 'include'
             });
 
@@ -659,7 +659,7 @@ function initCoachSchedulePage() {
     async function fetchClassAttendees(classId) {
         try {
             attendeeListContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted);">Loading attendees...</p>';
-            const res = await fetch(`/api/classes/${classId}/attendees`, {
+            const res = await secureFetch(`/api/classes/${classId}/attendees`, {
                 credentials: 'include'
             });
 
@@ -846,7 +846,7 @@ function initCoachSchedulePage() {
                         if (loadingModal) loadingModal.style.display = 'flex';
 
                         try {
-                            const res = await fetch('/api/attendance/override', {
+                            const res = await secureFetch('/api/attendance/override', {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json'

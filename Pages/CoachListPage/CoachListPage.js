@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Strict Database Role Verification via HttpOnly Cookies BEFORE Loading Any Data
     try {
-        const profileRes = await fetch('/api/user/profile', {
+        const profileRes = await secureFetch('/api/user/profile', {
             credentials: 'include' // <--- Sends the secure cookie automatically
         });
 
@@ -50,7 +50,7 @@ function initCoachManagement() {
             coachTableBody.innerHTML = '';
             emptyState.style.display = 'none';
 
-            const response = await fetch('/api/admin/coaches', {
+            const response = await secureFetch('/api/admin/coaches', {
                 credentials: 'include' // <--- Sends the secure cookie automatically
             });
 

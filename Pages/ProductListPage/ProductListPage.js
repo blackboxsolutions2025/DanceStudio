@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Strict Database Role Verification via HttpOnly Cookies BEFORE Loading Any Data
     try {
-        const profileRes = await fetch('/api/user/profile', {
+        const profileRes = await secureFetch('/api/user/profile', {
             credentials: 'include' // <--- Sends the secure cookie automatically
         });
 
@@ -56,7 +56,7 @@ function initProductManagement() {
     // Fetch Products Catalog
     const loadInventory = async () => {
         try {
-            const res = await fetch('/api/shop/products', {
+            const res = await secureFetch('/api/shop/products', {
                 credentials: 'include'
             });
             if (!res.ok) throw new Error('Failed to fetch inventory.');

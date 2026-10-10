@@ -129,7 +129,7 @@ function initBookedVenuesManagement(isAdmin) {
     async function fetchRentals() {
         try {
             const endpoint = isAdmin ? '/api/admin/venue-rentals' : '/api/user/rentals';
-            const response = await fetch(endpoint, {
+            const response = await secureFetch(endpoint, {
                 credentials: 'include'
             });
 
