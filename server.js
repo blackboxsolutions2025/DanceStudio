@@ -101,6 +101,10 @@ app.get('/shop-item', (req, res) => {
     res.sendFile(path.join(__dirname, 'Pages', 'ShopItemInfoPage', 'ShopItemInfoPage.html'));
 });
 
+app.get('/shop-checkout', (req, res) => {
+    res.sendFile(path.join(__dirname, 'Pages', 'ShopCheckoutPage', 'ShopCheckoutPage.html'));
+});
+
 // --- Database Connection Pool ---
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
@@ -1032,7 +1036,7 @@ app.post('/api/webhooks/paymongo', express.raw({ type: 'application/json' }), as
                 await pool.execute('UPDATE payments SET status = ? WHERE paymongo_checkout_id = ?', ['paid', checkoutId]);
                 
                 // Check both enrollment_id and venue_rental_id
-                const [payments] = await pool.execute('SELECT enrollment_id, venue_rental_id FROM payments WHERE paymongo_checkout_id = ?', [checkoutId]);
+                const [payments] = await pool.execute('SELECT enrollment_id, venue_rental_id, shop_order_id FROM payments WHERE paymongo_checkout_id = ?', [checkoutId]);
                 if (payments.length > 0) {
                     const paymentRecord = payments[0];
                     
@@ -1165,16 +1169,55 @@ app.post('/api/webhooks/paymongo', express.raw({ type: 'application/json' }), as
                             }
                         }
                     }
+                    // 3. Handle Shop Order Payment Success
+                    else if (paymentRecord.shop_order_id) {
+                        const shopOrderId = paymentRecord.shop_order_id;
+                        
+                        // Fetch order items to verify stock is still available right now
+                        const [orderItems] = await pool.execute('SELECT variant_id, quantity FROM shop_order_items WHERE shop_order_id = ?', [shopOrderId]);
+                        
+                        let stockAvailable = true;
+                        for (const item of orderItems) {
+                            const [varRows] = await pool.execute('SELECT stock_quantity FROM variants WHERE id = ?', [item.variant_id]);
+                            if (varRows.length === 0 || varRows[0].stock_quantity < item.quantity) {
+                                stockAvailable = false;
+                                break;
+                            }
+                        }
+
+                        if (!stockAvailable) {
+                            // Stock ran out while user was paying on PayMongo! Cancel order.
+                            await pool.execute('UPDATE shop_orders SET status = ? WHERE id = ?', ['cancelled', shopOrderId]);
+                            await pool.execute('UPDATE payments SET status = ? WHERE paymongo_checkout_id = ?', ['failed', checkoutId]);
+                            console.warn(`Shop order #${shopOrderId} cancelled: Item went out of stock during payment window.`);
+                        } else {
+                            // Stock is still good. Confirm order and deduct stock safely.
+                            await pool.execute('UPDATE shop_orders SET status = ? WHERE id = ?', ['confirmed', shopOrderId]);
+
+                            for (const item of orderItems) {
+                                await pool.execute(
+                                    'UPDATE variants SET stock_quantity = GREATEST(0, stock_quantity - ?) WHERE id = ?',
+                                    [item.quantity, item.variant_id]
+                                );
+                            }
+                        }
+                    }
                 }
             }
             else if (eventType === 'checkout_session.payment.failed' || eventType === 'checkout_session.payment.expired') {
                 await pool.execute('UPDATE payments SET status = ? WHERE paymongo_checkout_id = ?', ['failed', checkoutId]);
-                const [payments] = await pool.execute('SELECT enrollment_id, venue_rental_id FROM payments WHERE paymongo_checkout_id = ?', [checkoutId]);
+                
+                // Include shop_order_id in the SELECT query
+                const [payments] = await pool.execute('SELECT enrollment_id, venue_rental_id, shop_order_id FROM payments WHERE paymongo_checkout_id = ?', [checkoutId]);
+                
                 if (payments.length > 0) {
                     if (payments[0].enrollment_id) {
                         await pool.execute('UPDATE enrollments SET status = ? WHERE id = ?', ['cancelled', payments[0].enrollment_id]);
                     } else if (payments[0].venue_rental_id) {
                         await pool.execute('UPDATE venue_rentals SET status = ? WHERE id = ?', ['cancelled', payments[0].venue_rental_id]);
+                    } else if (payments[0].shop_order_id) {
+                        // --- ADD THIS BLOCK FOR SHOP ORDERS ---
+                        await pool.execute('UPDATE shop_orders SET status = ? WHERE id = ?', ['cancelled', payments[0].shop_order_id]);
                     }
                 }
             }
@@ -2740,6 +2783,145 @@ app.get('/api/classes/:id', async (req, res) => {
         res.status(500).json({ message: 'Server error while fetching class details.' });
     }
 });
+
+// --- Shop Checkout & Stock Verification Endpoint ---
+app.post('/api/shop/checkout', authenticateToken, async (req, res) => {
+    const connection = await pool.getConnection();
+    try {
+        const { recipient_name, email, phone, items } = req.body;
+        const userId = req.user.id;
+
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ message: 'No items provided for checkout.' });
+        }
+
+        await connection.beginTransaction();
+
+        let subtotal = 0;
+        const verifiedOrderItems = [];
+
+        // --- Step 1: Pre-transaction stock check with FOR UPDATE row locking ---
+        for (const item of items) {
+            const { productId, variantId, quantity } = item;
+            if (!productId || !variantId || !quantity || quantity < 1) {
+                await connection.rollback();
+                return res.status(400).json({ message: 'Invalid item parameters.' });
+            }
+
+            // FOR UPDATE locks this specific variant row until commit/rollback
+            const [variants] = await connection.execute(
+                `SELECT v.id, v.sku, v.stock_quantity, v.price_override, p.base_price, p.title 
+                 FROM variants v 
+                 JOIN products p ON v.product_id = p.id 
+                 WHERE v.id = ? AND p.id = ? FOR UPDATE`,
+                [variantId, productId]
+            );
+
+            if (variants.length === 0) {
+                await connection.rollback();
+                return res.status(404).json({ message: 'One or more products or variants were not found.' });
+            }
+
+            const variant = variants[0];
+
+            if (variant.stock_quantity < quantity) {
+                await connection.rollback();
+                return res.status(400).json({ 
+                    message: `Insufficient stock for "${variant.title}" (SKU: ${variant.sku}). Available: ${variant.stock_quantity}, Requested: ${quantity}.` 
+                });
+            }
+
+            const price = variant.price_override !== null ? Number(variant.price_override) : Number(variant.base_price);
+            subtotal += price * quantity;
+
+            verifiedOrderItems.push({
+                product_id: productId,
+                variant_id: variantId,
+                quantity: quantity,
+                price: price,
+                title: variant.title
+            });
+        }
+
+        const totalAmount = subtotal; // No shipping fee
+        const amountInCentavos = Math.round(totalAmount * 100);
+
+        // --- Step 2: Create Pending Shop Order (Without Shipping Address) ---
+        const [orderResult] = await connection.execute(
+            `INSERT INTO shop_orders (user_id, total_amount, status, recipient_name, phone) 
+             VALUES (?, ?, 'pending', ?, ?)`,
+            [userId, totalAmount, recipient_name, phone]
+        );
+
+        const shopOrderId = orderResult.insertId;
+
+        for (const item of verifiedOrderItems) {
+            await connection.execute(
+                `INSERT INTO shop_order_items (shop_order_id, product_id, variant_id, quantity, price) 
+                 VALUES (?, ?, ?, ?, ?)`,
+                [shopOrderId, item.product_id, item.variant_id, item.quantity, item.price]
+            );
+        }
+
+        // --- Step 3: Initialize PayMongo Checkout Session ---
+        const lineItems = verifiedOrderItems.map(item => ({
+            name: item.title.length > 25 ? item.title.substring(0, 22) + '...' : item.title,
+            amount: Math.round(item.price * 100),
+            currency: 'PHP',
+            quantity: item.quantity
+        }));
+
+        const paymongoRes = await fetch('https://api.paymongo.com/v1/checkout_sessions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${Buffer.from(process.env.PAYMONGO_SECRET_KEY).toString('base64')}`
+            },
+            body: JSON.stringify({
+                data: {
+                    attributes: {
+                        line_items: lineItems,
+                        payment_method_types: ['gcash', 'paymaya', 'card'],
+                        success_url: 'http://localhost:3000/PaymentSuccessPage/PaymentSuccessPage.html?type=shop',
+                        cancel_url: 'http://localhost:3000/PaymentFailedPage/PaymentFailedPage.html?shop=cancelled',
+                        description: `Order #${shopOrderId} at Rhythm & Soul Dance Studio`
+                    }
+                }
+            })
+        });
+
+        const paymongoData = await paymongoRes.json();
+        if (!paymongoRes.ok || !paymongoData.data) {
+            await connection.rollback();
+            return res.status(500).json({ message: paymongoData.errors?.[0]?.detail || 'Failed to initialize PayMongo checkout session.' });
+        }
+
+        const checkoutId = paymongoData.data.id;
+        const checkoutUrl = paymongoData.data.attributes.checkout_url;
+
+        await connection.execute(
+            `INSERT INTO payments (shop_order_id, amount, paymongo_checkout_id, status) VALUES (?, ?, ?, 'pending')`,
+            [shopOrderId, totalAmount, checkoutId]
+        );
+
+        await connection.commit();
+        res.json({ checkoutUrl });
+    } catch (err) {
+        await connection.rollback();
+        console.error('Shop Checkout Error:', err);
+        res.status(500).json({ message: 'Server error during shop checkout initialization.' });
+    } finally {
+        connection.release();
+    }
+});
+
+
+
+
+
+
+
+
 
 
 

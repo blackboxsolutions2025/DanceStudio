@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout - Rhythm & Soul Studio Shop</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../Shared/header.css">
+    <link rel="stylesheet" href="ShopCheckoutPage.css">
+</head>
+<body>
+    <!-- Sticky Top Header (Matches header.css height of 65px) -->
+    <header class="checkout-sticky-header">
+        <button id="backIconBtn" class="back-icon-btn" title="Return">
+            <i class="fa-solid fa-arrow-left"></i>
+        </button>
+        <h1 class="checkout-title">Checkout</h1>
+        <div class="header-spacer"></div>
+    </header>
+
+    <main class="checkout-page-container">
+        <!-- Top Recipient Info Card -->
+        <div class="checkout-user-info-card">
+            <div class="user-primary-line">
+                <span id="displayRecipientName">Loading Name...</span> (<span id="displayRecipientPhone">Phone</span>)
+            </div>
+            <div class="user-secondary-line" id="displayRecipientEmail">
+                email@example.com
+            </div>
+        </div>
+
+        <!-- Middle Scrollable Product Section -->
+        <div class="checkout-scrollable-products" id="summaryItemsList">
+            <div class="loading-summary">Loading items...</div>
+        </div>
+    </main>
+
+    <!-- Sticky Bottom Footer with Total and Place Order Button Grouped Together -->
+    <footer class="checkout-sticky-footer">
+        <div class="footer-action-wrapper">
+            <div class="footer-total-container">
+                <span class="total-label">Total:</span>
+                <span class="total-amount-display" id="totalDisplay">₱0.00</span>
+            </div>
+            <button id="proceedPaymentBtn" class="btn-place-order">
+                Place Order
+            </button>
+        </div>
+    </footer>
+
+    <!-- Full-Page Loading Overlay -->
+    <div id="pageLoadingOverlay" class="page-loading-overlay" style="display: none;">
+        <div class="loading-spinner-box">
+            <i class="fa-solid fa-spinner fa-spin fa-3x"></i>
+            <p id="loadingOverlayText">Securing stock and initializing PayMongo...</p>
+        </div>
+    </div>
+
+    <script src="../Shared/header.js"></script>
+    <script src="ShopCheckoutPage.js"></script>
+</body>
+</html>

@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-        const response = await fetch('/api/shop/products');
+        const response = await secureFetch('/api/shop/products');
         if (!response.ok) throw new Error('Failed to fetch product catalog.'); 
 
         const products = await response.json();
@@ -52,11 +52,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         // State tracking
         window.currentProduct = product;
         window.attributeMap = attributeMap;
-        window.selectedAttributes = {}; // Empty by default so all options start enabled and unselected
+        window.selectedAttributes = {}; 
         window.activeModalActionType = 'cart';
-        window.currentPreviewImage = null; // Track manually clicked gallery images
+        window.currentPreviewImage = null;
 
-        // Render Page Layout with Description Card & Main Page Attributes Container
+        // Render Page Layout
         container.innerHTML = `
             <div class="product-detail-grid">
                 <!-- Gallery Column -->
@@ -87,14 +87,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
 
                     <!-- Main Page Variant Attributes Container -->
-                    <div class="page-attributes-container" id="pageAttributesContainer">
-                        <!-- Dynamically injected attribute groups -->
-                    </div>
+                    <div class="page-attributes-container" id="pageAttributesContainer"></div>
                 </div>
             </div>
         `;
 
-        // Attach event listener for horizontally scrollable sub-images using event delegation
         const thumbnailRow = document.getElementById('thumbnailRow');
         if (thumbnailRow) {
             thumbnailRow.addEventListener('click', (e) => {
@@ -107,10 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        // Show sticky action bar
         stickyBottomBar.style.display = 'block';
-
-        // Render both main page attributes and modal attributes
         renderAllAttributeContainers();
 
     } catch (err) {
@@ -159,11 +153,8 @@ function renderAttributeContainer(containerId) {
     container.innerHTML = attrHtml;
 }
 
-// Handle selecting or deselecting an attribute value in the modal or main page
 window.selectAttributeValue = function(attrName, attrValue, element) {
-    if (element && element.classList.contains('disabled')) {
-        return;
-    }
+    if (element && element.classList.contains('disabled')) return;
 
     if (window.selectedAttributes[attrName] === attrValue) {
         delete window.selectedAttributes[attrName];
@@ -171,12 +162,10 @@ window.selectAttributeValue = function(attrName, attrValue, element) {
         window.selectedAttributes[attrName] = attrValue;
     }
     
-    window.currentPreviewImage = null; // Clear gallery preview so variant/main image takes over on attribute change
+    window.currentPreviewImage = null; 
     renderAllAttributeContainers();
 };
 
-
-// Check availability matrix, update price, stock, and navigate preview images dynamically
 function updateMatchedVariantState() {
     const product = window.currentProduct;
     if (!product) return;
@@ -209,25 +198,21 @@ function updateMatchedVariantState() {
         currentStock = matchedVariant.stock_quantity;
         if (matchedVariant.image) {
             currentImg = matchedVariant.image;
-            window.currentPreviewImage = null; // Reset manual gallery override when a variant with an image matches
+            window.currentPreviewImage = null; 
         }
     } 
 
-    // Respect manually clicked gallery sub-image if no variant image overrides it
     if (!matchedVariant?.image && window.currentPreviewImage) {
         currentImg = window.currentPreviewImage;
     }
 
-    // Update Price and Stock Displays
     if (priceDisplay) priceDisplay.innerText = `₱${Number(currentPrice).toFixed(2)}`;
     if (modalPriceDisplay) modalPriceDisplay.innerText = `₱${Number(currentPrice).toFixed(2)}`;
     if (modalStockDisplay) modalStockDisplay.innerText = `Stock: ${currentStock}`;
 
-    // Update Images (Main Preview and Modal Image)
     if (mainPreviewImg && currentImg) mainPreviewImg.src = currentImg;
     if (modalImg && currentImg) modalImg.src = currentImg;
 
-    // Highlight matching thumbnail if available
     if (currentImg) {
         const thumbs = document.querySelectorAll('.thumb-img');
         thumbs.forEach(thumb => {
@@ -258,7 +243,6 @@ function updateMatchedVariantState() {
         }
     }
 
-    // Smart Graying Out across all variant groups
     const attrGroups = document.querySelectorAll('.variants-group');
     attrGroups.forEach(group => {
         const attrName = group.getAttribute('data-attribute-name');
@@ -292,7 +276,6 @@ function updateMatchedVariantState() {
     });
 }
 
-// Open / Close Modal Handlers
 window.openVariantModal = function(actionType) {
     window.activeModalActionType = actionType;
     const confirmBtn = document.getElementById('modalConfirmBtn');
@@ -308,7 +291,6 @@ window.closeVariantModal = function(event) {
     document.getElementById('shopModalOverlay').classList.remove('active');
 };
 
-// Quantity adjustment inside modal
 window.updateModalQty = function(change) {
     const input = document.getElementById('modalQtyInput');
     if (!input) return;
@@ -317,7 +299,6 @@ window.updateModalQty = function(change) {
     input.value = current;
 };
 
-// Confirm action (Add to Cart or Buy Now / Checkout) with Stock Validation & Global Modals
 window.confirmModalAction = function() {
     const product = window.currentProduct;
     const qtyInput = document.getElementById('modalQtyInput');
@@ -363,19 +344,26 @@ window.confirmModalAction = function() {
     closeVariantModal();
 
     if (window.activeModalActionType === 'cart') {
+        let cart = JSON.parse(localStorage.getItem('studio_cart') || '[]');
+        cart.push(cartItem);
+        localStorage.setItem('studio_cart', JSON.stringify(cart));
+        closeVariantModal();
         if (typeof window.showSuccessModal === 'function') {
             window.showSuccessModal('Product successfully added to your cart!');
         } else {
             alert('Product successfully added to your cart!');
         }
     } else {
-        window.location.href = '../Shop/Checkout.html';
+        // Buy Now direct checkout
+        const checkoutItem = [cartItem];
+        localStorage.setItem('studio_checkout_items', JSON.stringify(checkoutItem));
+        closeVariantModal();
+        window.location.href = '../ShopCheckoutPage/ShopCheckoutPage.html';
     }
 };
 
-// Global preview image switcher with automatic variant selection and deselection
 window.changePreviewImage = function(imgSrc, thumbElement) {
-    window.currentPreviewImage = imgSrc; // Store clicked gallery image
+    window.currentPreviewImage = imgSrc; 
     const mainImg = document.getElementById('mainPreviewImg');
     if (mainImg) mainImg.src = imgSrc;
     

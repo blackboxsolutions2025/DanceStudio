@@ -25,12 +25,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (closeFilterModal) closeFilterModal.addEventListener('click', () => filterModal.style.display = 'none');
     window.addEventListener('click', (e) => { if (e.target === filterModal) filterModal.style.display = 'none'; });
 
-    // --- Load Filter Options (Categories, Brands) ---
+    // --- Load Filter Options (Categories, Brands) using secureFetch ---
     async function loadFilterOptions() {
         try {
             const [catRes, brandRes] = await Promise.all([
-                fetch('/api/categories'),
-                fetch('/api/brands')
+                secureFetch('/api/categories'),
+                secureFetch('/api/brands')
             ]);
 
             if (catRes.ok && filterCategory) {
@@ -57,10 +57,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // --- Fetch Products Catalog ---
+    // --- Fetch Products Catalog using secureFetch ---
     async function fetchProducts() {
         try {
-            const response = await fetch('/api/shop/products');
+            const response = await secureFetch('/api/shop/products');
             if (!response.ok) throw new Error('Failed to fetch products.');
 
             allProducts = await response.json();
@@ -111,7 +111,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else if (selectedSort === 'name-asc') {
                 return a.title.localeCompare(b.title);
             } else {
-                // newest
                 return new Date(b.created_at || 0) - new Date(a.created_at || 0);
             }
         });
