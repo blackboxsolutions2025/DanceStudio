@@ -188,6 +188,7 @@
                 <li><a href="../VenueListPage/VenueListPage.html" class="${currentPath.includes('VenueListPage') ? 'active' : ''}"><i class="fa-solid fa-building"></i> Venue Management</a></li>
                 <li><a href="../BookedVenuePage/BookedVenuePage.html" class="${currentPath.includes('BookedVenuePage') ? 'active' : ''}"><i class="fa-solid fa-building-circle-check"></i> Booked Venues</a></li>
                 <li><a href="../ProductListPage/ProductListPage.html" class="${currentPath.includes('ProductListPage') ? 'active' : ''}"><i class="fa-solid fa-box"></i> Product Management</a></li>
+                <li><a href="../OrderListPage/OrderListPage.html" class="${currentPath.includes('OrderListPage') ? 'active' : ''}"><i class="fa-solid fa-qrcode"></i> Order Scanner</a></li>
             `;
         } else if (userRole === 'coach') {
             roleLinksHTML = `

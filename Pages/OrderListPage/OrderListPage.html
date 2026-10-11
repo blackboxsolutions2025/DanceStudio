@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Management - Rhythm & Soul</title>
+    <link rel="stylesheet" href="OrderListPage.css">
+    <!-- Include Html5-Qrcode Library for Camera Scanning -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+</head>
+<body>
+    <!-- Header injected by header.js -->
+    <div id="header-placeholder"></div>
+
+    <!-- VIEW 1: ALL ORDERS LIST -->
+    <main class="shop-container" id="listView" style="display: none;">
+
+        <!-- Unified Toolbar Card -->
+        <div class="shop-toolbar-card">
+            <div class="toolbar-filters-summary">
+                <div class="summary-item">
+                    <span class="summary-label"><i class="fas fa-filter"></i> Status</span>
+                    <span id="summaryStatus" class="summary-val">All</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label"><i class="fas fa-sort-amount-down"></i> Sort By</span>
+                    <span id="summarySort" class="summary-val">Newest</span>
+                </div>
+            </div>
+
+            <div class="toolbar-actions">
+                <button id="openFilterModal" class="filter-trigger-btn-green">
+                    <i class="fas fa-filter"></i> Filter <span id="activeFiltersBadge" class="filter-badge" style="display: none;">Active</span>
+                </button>
+                <button id="scanQrBtn" class="filter-trigger-btn-blue">
+                    <i class="fas fa-qrcode"></i> Scan QR
+                </button>
+            </div>
+        </div>
+
+        <div class="product-grid" id="ordersGrid">
+            <!-- Dynamic Order Cards injected here -->
+        </div>
+
+        <div id="noOrdersMessage" class="no-products" style="display: none;">
+            <i class="fas fa-box-open" style="font-size: 3rem; color: #a0a5b1; margin-bottom: 1rem;"></i>
+            <h3>No orders found</h3>
+            <p>No orders match your filter criteria.</p>
+        </div>
+    </main>
+
+    <!-- VIEW 2: SINGLE ORDER DETAILS (Shown when scanned / URL has ?orderId=) -->
+    <main class="order-container detail-view" id="detailView" style="display: none;">
+        <button id="backToListBtn" class="btn-secondary back-btn"><i class="fas fa-arrow-left"></i> Back to Orders</button>
+        
+        <div class="order-card detail-order-card" id="orderCard" style="display: none;">
+            <div class="card-header">
+                <h2><i class="fa-solid fa-box-open"></i> Order #<span id="displayOrderId">--</span></h2>
+                <span class="status-badge" id="orderStatus">Loading...</span>
+            </div>
+
+            <div class="customer-info-box">
+                <h3><i class="fa-solid fa-user-circle"></i> Customer Details</h3>
+                <div class="info-row"><i class="fa-solid fa-user"></i> <span id="customerName">--</span></div>
+                <div class="info-row"><i class="fa-solid fa-phone"></i> <span id="customerPhone">--</span></div>
+            </div>
+
+            <div class="items-checklist">
+                <h3><i class="fa-solid fa-tasks"></i> Handover Checklist</h3>
+                <div id="itemsList" class="items-list">
+                    <!-- Items rendered here dynamically -->
+                </div>
+            </div>
+
+            <!-- Claim / Handover Confirmation Action Section -->
+            <div class="action-section" id="detailActionSection">
+                <button id="detailClaimBtn" class="btn-claim" disabled>
+                    <i class="fa-solid fa-check-double"></i> Confirm Checklist & Mark as Claimed
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <div id="loadingState" class="loading-state">
+        <i class="fa-solid fa-circle-notch fa-spin"></i>
+        <p>Loading data...</p>
+    </div>
+
+    <!-- Camera Scanner Modal -->
+    <div id="cameraScannerModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content scanner-modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-qrcode"></i> Scan Student QR Code</h3>
+                <button id="closeScannerModal" class="modal-close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="reader" style="width: 100%;"></div>
+                <p style="text-align: center; color: #94a3b8; font-size: 0.85rem; margin-top: 15px;">Position the student's order QR code within the camera frame.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Modal -->
+    <div id="filterModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-filter"></i> Filter Orders</h3>
+                <button id="closeFilterModal" class="modal-close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="filter-group">
+                    <label><i class="fas fa-tags"></i> Order Status</label>
+                    <select id="filterStatus" class="filter-input">
+                        <option value="">All Orders</option>
+                        <option value="confirmed">Not Yet Claimed (Confirmed)</option>
+                        <option value="claimed">Claimed</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label><i class="fas fa-sort-amount-down"></i> Sort By</label>
+                    <select id="filterSort" class="filter-input">
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="amount-high">Total: High to Low</option>
+                        <option value="amount-low">Total: Low to High</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="resetModalFilters" class="btn btn-secondary">Reset</button>
+                <button id="applyModalFilters" class="btn btn-primary">Apply Filters</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../Shared/header.js"></script>
+    <script src="OrderListPage.js"></script>
+</body>
+</html>
