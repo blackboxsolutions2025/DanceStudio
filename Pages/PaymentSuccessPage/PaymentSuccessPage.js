@@ -13,6 +13,12 @@ document.addEventListener('DOMContentLoaded', () => {
         nextStepText.textContent = 'Inspect your booked venue & get ready!';
         primaryActionBtn.href = '../VenueRentalPage/VenueRentalPage.html';
         primaryActionBtn.innerHTML = '<i class="fa-solid fa-building"></i> View Venue Rentals';
+    } else if (type === 'shop') {
+        successTitle.textContent = 'Order Confirmed!';
+        successSubtitle.textContent = 'Thank you for your payment. Your shop order has been successfully placed and confirmed.';
+        nextStepText.textContent = 'Check your email for confirmation details!';
+        primaryActionBtn.href = '../ShopListPage/ShopListPage.html';
+        primaryActionBtn.innerHTML = '<i class="fa-solid fa-bag-shopping"></i> Continue Shopping';
     } else {
         // Default to class enrollment
         successTitle.textContent = 'Enrollment Confirmed!';

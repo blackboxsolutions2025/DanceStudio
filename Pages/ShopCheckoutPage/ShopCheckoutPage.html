@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="ShopCheckoutPage.css">
 </head>
 <body>
-    <!-- Sticky Top Header (Matches header.css height of 65px) -->
+    <!-- Sticky Top Header -->
     <header class="checkout-sticky-header">
         <button id="backIconBtn" class="back-icon-btn" title="Return">
             <i class="fa-solid fa-arrow-left"></i>
@@ -19,23 +19,26 @@
     </header>
 
     <main class="checkout-page-container">
-        <!-- Top Recipient Info Card -->
-        <div class="checkout-user-info-card">
-            <div class="user-primary-line">
-                <span id="displayRecipientName">Loading Name...</span> (<span id="displayRecipientPhone">Phone</span>)
+        <!-- Unified Scrollable Container: Includes User Info and Grouped Items -->
+        <div class="checkout-scrollable-content" id="scrollableCheckoutContent">
+            <!-- Top Recipient Info Card -->
+            <div class="checkout-user-info-card">
+                <div class="user-primary-line">
+                    <span id="displayRecipientName">Loading Name...</span> (<span id="displayRecipientPhone">Phone</span>)
+                </div>
+                <div class="user-secondary-line" id="displayRecipientEmail">
+                    email@example.com
+                </div>
             </div>
-            <div class="user-secondary-line" id="displayRecipientEmail">
-                email@example.com
-            </div>
-        </div>
 
-        <!-- Middle Scrollable Product Section -->
-        <div class="checkout-scrollable-products" id="summaryItemsList">
-            <div class="loading-summary">Loading items...</div>
+            <!-- Product Items List -->
+            <div id="summaryItemsList" style="display: flex; flex-direction: column; gap: 12px;">
+                <div class="loading-summary">Loading items...</div>
+            </div>
         </div>
     </main>
 
-    <!-- Sticky Bottom Footer with Total and Place Order Button Grouped Together -->
+    <!-- Sticky Bottom Footer -->
     <footer class="checkout-sticky-footer">
         <div class="footer-action-wrapper">
             <div class="footer-total-container">

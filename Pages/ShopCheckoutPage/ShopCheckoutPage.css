@@ -3,12 +3,32 @@ body {
     color: #ffffff;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     margin: 0;
-    padding-top: 65px; /* Matches header.css height */
-    padding-bottom: 85px; /* space for sticky footer */
+    padding-top: 65px;
+    padding-bottom: 85px;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
     box-sizing: border-box;
+}
+
+/* Custom Scrollbar Design */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0b0f19;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #1e293b;
+    border-radius: 4px;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #10b981;
 }
 
 /* Sticky Top Header */
@@ -17,7 +37,7 @@ body {
     top: 0;
     left: 0;
     width: 100%;
-    height: 65px; /* Matches header.css height */
+    height: 65px;
     background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
     border-bottom: 1px solid rgba(16, 185, 129, 0.25);
     display: flex;
@@ -64,7 +84,7 @@ body {
 }
 
 .header-spacer {
-    width: 38px; /* balances the back button width */
+    width: 38px;
 }
 
 /* Main Container */
@@ -76,14 +96,24 @@ body {
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    gap: 16px;
     flex: 1;
 }
 
-/* User Info Top Card */
+/* Unified Scrollable Container (User Info + Grouped Products) */
+.checkout-scrollable-content {
+    flex: 1;
+    max-height: calc(100vh - 160px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-right: 4px;
+}
+
+/* User Info Card */
 .checkout-user-info-card {
     background-color: #1e293b;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.2);
     border-radius: 12px;
     padding: 14px 18px;
     display: flex;
@@ -102,15 +132,30 @@ body {
     color: #94a3b8;
 }
 
-/* Middle Scrollable Product Section */
-.checkout-scrollable-products {
-    flex: 1;
-    max-height: calc(100vh - 230px);
-    overflow-y: auto;
+/* Grouped Product Card */
+.checkout-group-card {
+    background-color: #1e293b;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.checkout-group-header {
+    padding: 12px 16px;
+    background: rgba(15, 23, 42, 0.6);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.checkout-group-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0;
+}
+
+.checkout-group-items {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding-right: 4px;
 }
 
 .summary-item-card {
@@ -118,9 +163,12 @@ body {
     align-items: center;
     gap: 12px;
     background-color: #1e293b;
-    padding: 12px;
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.summary-item-card:last-child {
+    border-bottom: none;
 }
 
 .summary-item-img {
@@ -137,18 +185,19 @@ body {
     min-width: 0;
 }
 
-.summary-item-title {
-    font-size: 0.95rem;
-    color: #f8fafc;
-    margin: 0 0 2px 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.summary-item-attrs {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 2px;
 }
 
 .summary-item-meta {
     font-size: 0.8rem;
-    color: #94a3b8;
+    color: #cbd5e1;
     margin: 0;
 }
 

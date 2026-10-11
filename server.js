@@ -1173,7 +1173,6 @@ app.post('/api/webhooks/paymongo', express.raw({ type: 'application/json' }), as
                     else if (paymentRecord.shop_order_id) {
                         const shopOrderId = paymentRecord.shop_order_id;
                         
-                        // Fetch order items to verify stock is still available right now
                         const [orderItems] = await pool.execute('SELECT variant_id, quantity FROM shop_order_items WHERE shop_order_id = ?', [shopOrderId]);
                         
                         let stockAvailable = true;
@@ -1186,12 +1185,10 @@ app.post('/api/webhooks/paymongo', express.raw({ type: 'application/json' }), as
                         }
 
                         if (!stockAvailable) {
-                            // Stock ran out while user was paying on PayMongo! Cancel order.
                             await pool.execute('UPDATE shop_orders SET status = ? WHERE id = ?', ['cancelled', shopOrderId]);
                             await pool.execute('UPDATE payments SET status = ? WHERE paymongo_checkout_id = ?', ['failed', checkoutId]);
                             console.warn(`Shop order #${shopOrderId} cancelled: Item went out of stock during payment window.`);
                         } else {
-                            // Stock is still good. Confirm order and deduct stock safely.
                             await pool.execute('UPDATE shop_orders SET status = ? WHERE id = ?', ['confirmed', shopOrderId]);
 
                             for (const item of orderItems) {
@@ -1199,6 +1196,93 @@ app.post('/api/webhooks/paymongo', express.raw({ type: 'application/json' }), as
                                     'UPDATE variants SET stock_quantity = GREATEST(0, stock_quantity - ?) WHERE id = ?',
                                     [item.quantity, item.variant_id]
                                 );
+                            }
+
+                            // Fetch order and customer details
+                            const [orders] = await pool.execute(
+                                `SELECT so.id, so.total_amount, so.recipient_name, so.phone, u.email, u.name 
+                                 FROM shop_orders so 
+                                 JOIN users u ON so.user_id = u.id 
+                                 WHERE so.id = ?`,
+                                [shopOrderId]
+                            );
+
+                            if (orders.length > 0) {
+                                const order = orders[0];
+                                const [itemsList] = await pool.execute(
+                                    `SELECT soi.quantity, soi.price, p.title, soi.variant_id 
+                                     FROM shop_order_items soi 
+                                     JOIN products p ON soi.product_id = p.id 
+                                     WHERE soi.shop_order_id = ?`,
+                                    [shopOrderId]
+                                );
+
+                                let itemsHtml = '';
+                                for (const i of itemsList) {
+                                    // Fetch attributes for each item variant
+                                    const [attrs] = await pool.execute(
+                                        `SELECT a.name AS attribute_name, vv.value 
+                                         FROM variant_values vv
+                                         JOIN attributes a ON vv.attribute_id = a.id
+                                         WHERE vv.variant_id = ?`,
+                                        [i.variant_id]
+                                    );
+                                    const attrStr = attrs.map(a => a.value).join(', ');
+                                    const titleDisplay = attrStr ? `${i.title} (${attrStr})` : i.title;
+                                    itemsHtml += `<li>${i.quantity}x ${titleDisplay} - ₱${Number(i.price * i.quantity).toFixed(2)}</li>`;
+                                }
+
+                                const shopPageUrl = `http://localhost:3000/shop`;
+                                const adminDashboardUrl = `http://localhost:3000/admin`;
+
+                                // 1. Send confirmation email to user
+                                await transporter.sendMail({
+                                    from: '"Rhythm & Soul Dance Studio" <no-reply@rhythmsoul.com>',
+                                    to: order.email,
+                                    subject: `Order Confirmed: #${order.id} - Rhythm & Soul Studio`,
+                                    html: `
+                                        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f1015; color: #ffffff; padding: 30px; border-radius: 12px; max-width: 500px; margin: auto;">
+                                            <h2 style="color: #10b981; margin-bottom: 10px;">Payment Successful, ${order.recipient_name}!</h2>
+                                            <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;">Your payment for Order <strong>#${order.id}</strong> has been successfully processed and confirmed.</p>
+                                            <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Items Purchased:</strong></p>
+                                            <ul style="color: #a0a5b1; font-size: 0.90rem; line-height: 1.4; padding-left: 20px;">
+                                                ${itemsHtml}
+                                            </ul>
+                                            <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Total Amount:</strong> ₱${Number(order.total_amount).toFixed(2)}</p>
+                                            <div style="text-align: center; margin: 30px 0;">
+                                                <a href="${shopPageUrl}" style="display: inline-block; background-color: #10b981; color: #0f1015; padding: 12px 25px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 1rem;">Visit Shop</a>
+                                            </div>
+                                            <p style="color: #a0a5b1; font-size: 0.85rem; border-top: 1px solid #2b2f3a; padding-top: 15px;">Thank you for shopping with Rhythm & Soul Dance Studio!</p>
+                                        </div>
+                                    `
+                                });
+
+                                // 2. Send notification email to all admins
+                                const [admins] = await pool.execute("SELECT email FROM users WHERE role = 'admin'");
+                                if (admins.length > 0) {
+                                    const adminEmails = admins.map(a => a.email).join(',');
+                                    await transporter.sendMail({
+                                        from: '"Rhythm & Soul Dance Studio" <no-reply@rhythmsoul.com>',
+                                        to: adminEmails,
+                                        subject: `New Shop Order Confirmed: #${order.id} (${order.recipient_name})`,
+                                        html: `
+                                            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f1015; color: #ffffff; padding: 30px; border-radius: 12px; max-width: 500px; margin: auto;">
+                                                <h2 style="color: #10b981; margin-bottom: 10px;">New Shop Order Confirmed</h2>
+                                                <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;">A new shop order has been successfully placed and paid for by <strong>${order.recipient_name}</strong> (${order.email}, Phone: ${order.phone}).</p>
+                                                <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Order ID:</strong> #${order.id}</p>
+                                                <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Items:</strong></p>
+                                                <ul style="color: #a0a5b1; font-size: 0.90rem; line-height: 1.4; padding-left: 20px;">
+                                                    ${itemsHtml}
+                                                </ul>
+                                                <p style="color: #a0a5b1; font-size: 0.95rem; line-height: 1.5;"><strong>Total Amount:</strong> ₱${Number(order.total_amount).toFixed(2)}</p>
+                                                <div style="text-align: center; margin: 30px 0;">
+                                                    <a href="${adminDashboardUrl}" style="display: inline-block; background-color: #10b981; color: #0f1015; padding: 12px 25px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 1rem;">View Admin Dashboard</a>
+                                                </div>
+                                                <p style="color: #a0a5b1; font-size: 0.85rem; border-top: 1px solid #2b2f3a; padding-top: 15px;">Rhythm & Soul Dance Studio Automated System</p>
+                                            </div>
+                                        `
+                                    });
+                                }
                             }
                         }
                     }
@@ -2831,6 +2915,18 @@ app.post('/api/shop/checkout', authenticateToken, async (req, res) => {
                 });
             }
 
+            // Fetch variant attributes (e.g., Size, Color)
+            const [attrs] = await connection.execute(
+                `SELECT a.name AS attribute_name, vv.value 
+                 FROM variant_values vv
+                 JOIN attributes a ON vv.attribute_id = a.id
+                 WHERE vv.variant_id = ?`,
+                [variantId]
+            );
+
+            const attrStr = attrs.map(a => a.value).join(', ');
+            const displayName = attrStr ? `${variant.title} (${attrStr})` : variant.title;
+
             const price = variant.price_override !== null ? Number(variant.price_override) : Number(variant.base_price);
             subtotal += price * quantity;
 
@@ -2839,14 +2935,16 @@ app.post('/api/shop/checkout', authenticateToken, async (req, res) => {
                 variant_id: variantId,
                 quantity: quantity,
                 price: price,
-                title: variant.title
+                title: variant.title,
+                displayName: displayName,
+                attributes: attrStr
             });
         }
 
-        const totalAmount = subtotal; // No shipping fee
+        const totalAmount = subtotal; 
         const amountInCentavos = Math.round(totalAmount * 100);
 
-        // --- Step 2: Create Pending Shop Order (Without Shipping Address) ---
+        // --- Step 2: Create Pending Shop Order ---
         const [orderResult] = await connection.execute(
             `INSERT INTO shop_orders (user_id, total_amount, status, recipient_name, phone) 
              VALUES (?, ?, 'pending', ?, ?)`,
@@ -2863,9 +2961,18 @@ app.post('/api/shop/checkout', authenticateToken, async (req, res) => {
             );
         }
 
-        // --- Step 3: Initialize PayMongo Checkout Session ---
+        // Remove checked-out items from user's cart
+        for (const item of items) {
+            await connection.execute(
+                'DELETE FROM cart_items WHERE user_id = ? AND product_id = ? AND variant_id = ?',
+                [userId, item.productId, item.variantId]
+            );
+        }
+        cartCache.delete(userId);
+
+        // --- Step 3: Initialize PayMongo Checkout Session with Attributes in Line Items ---
         const lineItems = verifiedOrderItems.map(item => ({
-            name: item.title.length > 25 ? item.title.substring(0, 22) + '...' : item.title,
+            name: item.displayName.length > 25 ? item.displayName.substring(0, 22) + '...' : item.displayName,
             amount: Math.round(item.price * 100),
             currency: 'PHP',
             quantity: item.quantity
@@ -2915,7 +3022,136 @@ app.post('/api/shop/checkout', authenticateToken, async (req, res) => {
     }
 });
 
+const cartCache = new Map();
 
+// --- Get Cart Items ---
+app.get('/api/shop/cart', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        // Check in-memory cache first
+        if (cartCache.has(userId)) {
+            return res.json(cartCache.get(userId));
+        }
+
+        const query = `
+            SELECT ci.id AS cart_id, ci.quantity, 
+                   p.id AS product_id, p.title AS product_title, p.base_price, p.main_image,
+                   v.id AS variant_id, v.sku, v.stock_quantity, v.price_override, v.image AS variant_image
+            FROM cart_items ci
+            JOIN products p ON ci.product_id = p.id
+            JOIN variants v ON ci.variant_id = v.id
+            WHERE ci.user_id = ?
+            ORDER BY ci.created_at DESC
+        `;
+        const [rows] = await pool.execute(query, [userId]);
+
+        const cartItems = [];
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+        for (const row of rows) {
+            const [attrs] = await pool.execute(`
+                SELECT a.name AS attribute_name, vv.value 
+                FROM variant_values vv
+                JOIN attributes a ON vv.attribute_id = a.id
+                WHERE vv.variant_id = ?
+            `, [row.variant_id]);
+
+            const price = row.price_override !== null ? Number(row.price_override) : Number(row.base_price);
+            const image = row.variant_image || row.main_image;
+            const formattedImage = image ? (image.startsWith('http') ? image : `${baseUrl}/productimages/${image}`) : 'https://via.placeholder.com/100?text=No+Image';
+
+            cartItems.push({
+                cartId: row.cart_id,
+                productId: row.product_id,
+                variantId: row.variant_id,
+                title: row.product_title,
+                price: price,
+                stock: row.stock_quantity,
+                quantity: row.quantity,
+                image: formattedImage,
+                attributes: attrs
+            });
+        }
+
+        cartCache.set(userId, cartItems);
+        res.json(cartItems);
+    } catch (err) {
+        console.error('Fetch Cart Error:', err);
+        res.status(500).json({ message: 'Server error while fetching cart.' });
+    }
+});
+
+// --- Add Item to Cart ---
+app.post('/api/shop/cart', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { productId, variantId, quantity } = req.body;
+        const qty = quantity || 1;
+
+        if (!productId || !variantId) {
+            return res.status(400).json({ message: 'Product ID and Variant ID are required.' });
+        }
+
+        const [variants] = await pool.execute('SELECT stock_quantity FROM variants WHERE id = ? AND product_id = ?', [variantId, productId]);
+        if (variants.length === 0) {
+            return res.status(404).json({ message: 'Product variant not found.' });
+        }
+
+        await pool.execute(
+            `INSERT INTO cart_items (user_id, product_id, variant_id, quantity) 
+             VALUES (?, ?, ?, ?) 
+             ON DUPLICATE KEY UPDATE quantity = quantity + ?`,
+            [userId, productId, variantId, qty, qty]
+        );
+
+        cartCache.delete(userId); // Invalidate cache on write
+        res.status(200).json({ message: 'Item successfully added to cart!' });
+    } catch (err) {
+        console.error('Add to Cart Error:', err);
+        res.status(500).json({ message: 'Server error while adding to cart.' });
+    }
+});
+
+// --- Update Cart Item Quantity ---
+app.put('/api/shop/cart/:cartId', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const cartId = req.params.cartId;
+        const { quantity } = req.body;
+
+        if (!quantity || quantity < 1) {
+            return res.status(400).json({ message: 'Valid quantity is required.' });
+        }
+
+        await pool.execute(
+            'UPDATE cart_items SET quantity = ? WHERE id = ? AND user_id = ?',
+            [quantity, cartId, userId]
+        );
+
+        cartCache.delete(userId);
+        res.json({ message: 'Cart updated successfully.' });
+    } catch (err) {
+        console.error('Update Cart Error:', err);
+        res.status(500).json({ message: 'Server error while updating cart.' });
+    }
+});
+
+// --- Remove Item from Cart ---
+app.delete('/api/shop/cart/:cartId', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const cartId = req.params.cartId;
+
+        await pool.execute('DELETE FROM cart_items WHERE id = ? AND user_id = ?', [cartId, userId]);
+
+        cartCache.delete(userId);
+        res.json({ message: 'Item removed from cart.' });
+    } catch (err) {
+        console.error('Remove Cart Item Error:', err);
+        res.status(500).json({ message: 'Server error while removing cart item.' });
+    }
+});
 
 
 

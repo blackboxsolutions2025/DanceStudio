@@ -305,6 +305,25 @@ function initProductBuilder() {
         updateVariantSku(variantBox);
     }
 
+    function updateAttributeDropdowns(variantBox) {
+        const selects = variantBox.querySelectorAll('.attr-id');
+        const selectedIds = Array.from(selects).map(s => s.value).filter(Boolean);
+
+        selects.forEach(select => {
+            const currentValue = select.value;
+            Array.from(select.options).forEach(option => {
+                if (!option.value) return; // skip placeholder option
+                if (option.value === currentValue) {
+                    option.disabled = false;
+                } else if (selectedIds.includes(option.value)) {
+                    option.disabled = true; // Disable if already chosen in another row of this variant
+                } else {
+                    option.disabled = false;
+                }
+            });
+        });
+    }
+
     function addAttrRow(container, variantBox, selectedAttrId = '') {
         const row = document.createElement('div');
         row.className = 'attribute-row';
@@ -316,11 +335,65 @@ function initProductBuilder() {
             <button type="button" class="btn-icon-danger remove-attr-btn" title="Remove Attribute"><i class="fa-solid fa-x"></i></button>
         `;
 
-        row.querySelector('.attr-id').addEventListener('change', () => updateVariantSku(variantBox));
-        row.querySelector('.attr-value').addEventListener('input', () => updateVariantSku(variantBox));
-        row.querySelector('.remove-attr-btn').addEventListener('click', () => row.remove());
+        const attrSelect = row.querySelector('.attr-id');
+        const attrValueInput = row.querySelector('.attr-value');
+        const removeAttrBtn = row.querySelector('.remove-attr-btn');
+
+        // Sync spec change across all variants at the exact same row index (line)
+        attrSelect.addEventListener('change', () => {
+            const currentVariantBox = row.closest('.variant-box');
+            const attributesList = currentVariantBox.querySelector('.attributes-list');
+            const rowIndex = Array.from(attributesList.children).indexOf(row);
+            const selectedValue = attrSelect.value;
+
+            variantsContainer.querySelectorAll('.variant-box').forEach(box => {
+                const boxList = box.querySelector('.attributes-list');
+                const targetRow = boxList.children[rowIndex];
+                if (targetRow) {
+                    const targetSelect = targetRow.querySelector('.attr-id');
+                    if (targetSelect && targetSelect.value !== selectedValue) {
+                        targetSelect.value = selectedValue;
+                        updateAttributeDropdowns(box);
+                    }
+                }
+            });
+
+            updateAttributeDropdowns(currentVariantBox);
+            updateVariantSku(currentVariantBox);
+        });
+
+        attrValueInput.addEventListener('input', () => updateVariantSku(variantBox));
+
+        // Confirmation modal before removing spec line across all variants
+        removeAttrBtn.addEventListener('click', async () => {
+            const currentVariantBox = row.closest('.variant-box');
+            const attributesList = currentVariantBox.querySelector('.attributes-list');
+            const rowIndex = Array.from(attributesList.children).indexOf(row);
+
+            const confirmed = typeof window.showConfirmModal === 'function'
+                ? await window.showConfirmModal(
+                    'Removing this specification will also remove it from all other variants. Do you want to proceed?', 
+                    'Confirm Specification Removal', 
+                    'Remove', 
+                    'Cancel'
+                  )
+                : confirm('Removing this specification will also remove it from all other variants. Do you want to proceed?');
+
+            if (confirmed) {
+                variantsContainer.querySelectorAll('.variant-box').forEach(box => {
+                    const boxList = box.querySelector('.attributes-list');
+                    const targetRow = boxList.children[rowIndex];
+                    if (targetRow) {
+                        targetRow.remove();
+                        updateAttributeDropdowns(box);
+                    }
+                });
+                updateAllSkus();
+            }
+        });
 
         container.appendChild(row);
+        updateAttributeDropdowns(variantBox);
     }
 
     addVariantBtn.addEventListener('click', () => addVariantRow(getTemplateAttributes()));

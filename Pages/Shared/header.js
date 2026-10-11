@@ -12,18 +12,41 @@
 
     window.secureFetch = async function(url, options = {}) {
         options.credentials = 'include';
+        options.headers = options.headers || {};
         
         const method = (options.method || 'GET').toUpperCase();
         if (['POST', 'PUT', 'DELETE'].includes(method)) {
-            options.headers = {
-                ...options.headers,
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': window.getCsrfToken()
-            };
+            // Check if body is FormData (e.g. file uploads)
+            if (options.body instanceof FormData) {
+                // Remove Content-Type so browser automatically sets multipart/form-data with boundary
+                delete options.headers['Content-Type'];
+            } else {
+                // Default to JSON for normal requests
+                if (!options.headers['Content-Type']) {
+                    options.headers['Content-Type'] = 'application/json';
+                }
+            }
+            options.headers['X-CSRF-Token'] = window.getCsrfToken();
         }
 
         return fetch(url, options);
     };
+
+    async function secureFetch(url, options = {}) {
+        options.headers = options.headers || {};
+
+        if (options.body instanceof FormData) {
+            delete options.headers['Content-Type'];
+        } else {
+            if (!options.headers['Content-Type']) {
+                options.headers['Content-Type'] = 'application/json';
+            }
+        }
+
+        options.credentials = 'include';
+
+        return fetch(url, options);
+    }
     
     // ----------------------------------------
 
@@ -102,8 +125,8 @@
                     <span class="user-role-badge">${formattedRole.toLowerCase()}</span>
                 </div>
             </div>
-            <a href="../StudentClassSchedulePage/StudentClassSchedulePage.html" class="dropdown-btn">
-                <i class="fa-solid fa-calendar-check"></i> My Schedule
+            <a href="../ShopCartPage/ShopCartPage.html" class="dropdown-btn">
+                <i class="fa-solid fa-cart-shopping"></i> Cart
             </a>
             <a href="../Shop/Orders.html" class="dropdown-btn">
                 <i class="fa-solid fa-box-open"></i> Orders
@@ -275,7 +298,6 @@
                     : confirm('Are you sure you want to log out?');
 
                 if (confirmed) {
-                    // Call backend logout endpoint to clear the HttpOnly cookie
                     await fetch('/api/auth/logout', {
                         method: 'POST',
                         credentials: 'include'

@@ -16,7 +16,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         phone: '09000000000'
     };
 
-    // Fetch user profile info to display at top and payload submission
     try {
         const profileRes = await secureFetch('/api/user/profile');
         if (profileRes.ok) {
@@ -29,42 +28,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.warn('Could not load profile details:', err);
     }
 
-    // Render Top Contact Info
     displayRecipientName.innerText = cachedProfile.name;
     displayRecipientPhone.innerText = cachedProfile.phone;
     displayRecipientEmail.innerText = cachedProfile.email;
 
-    // Load items to checkout
     let checkoutItems = [];
     try {
         const stored = localStorage.getItem('studio_checkout_items');
         if (stored) {
             checkoutItems = JSON.parse(stored);
         } else {
-            const cart = JSON.parse(localStorage.getItem('studio_cart') || '[]');
-            checkoutItems = cart;
+            checkoutItems = JSON.parse(localStorage.getItem('studio_cart') || '[]');
         }
     } catch (e) {
         checkoutItems = [];
     }
 
-    // Handle Return Back Button Click -> Navigate back to ShopItemInfoPage
     if (backIconBtn) {
         backIconBtn.addEventListener('click', () => {
-            let returnUrl = '../ShopItemInfoPage/ShopItemInfoPage.html';
-            try {
-                if (checkoutItems.length > 0 && checkoutItems[0].productId) {
-                    returnUrl += `?id=${checkoutItems[0].productId}`;
-                }
-            } catch (e) {
-                // fallback
-            }
-            window.location.href = returnUrl;
+            window.location.href = '../ShopCartPage/ShopCartPage.html';
         });
     }
 
     if (!checkoutItems || checkoutItems.length === 0) {
-        summaryItemsList.innerHTML = '<p class="loading-summary" style="color: #ef4444;">No items to checkout. Please select a product or add items to cart.</p>';
+        summaryItemsList.innerHTML = '<p class="loading-summary" style="color: #ef4444;">No items to checkout. Please select items from your cart.</p>';
         if (proceedPaymentBtn) proceedPaymentBtn.disabled = true;
         return;
     }
@@ -87,21 +74,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!product) return;
 
         const variant = product.variants ? product.variants.find(v => v.id == item.variantId) : null;
-        const price = variant ? (variant.price_override || product.base_price) : product.base_price;
+        const price = item.price || (variant ? (variant.price_override || product.base_price) : product.base_price);
         const itemTotal = Number(price) * Number(item.quantity);
         subtotal += itemTotal;
 
-        let variantText = '';
-        if (item.attributes) {
-            variantText = Object.entries(item.attributes).map(([k, v]) => `${k}: ${v}`).join(' | ');
+        // Correctly format variant attributes (comma-separated values only, e.g. "Red, Small")
+        let attrText = '';
+        const sourceAttributes = item.attributes || variant?.attributes;
+        if (sourceAttributes && Array.isArray(sourceAttributes) && sourceAttributes.length > 0) {
+            attrText = sourceAttributes.map(a => a.value).join(', ');
         }
 
         formattedItemsForDisplay.push({
             title: product.title,
-            image: variant?.image || product.main_image || 'https://via.placeholder.com/60?text=No+Image',
+            image: variant?.image || product.main_image || item.image || 'https://via.placeholder.com/60?text=No+Image',
             price: Number(price),
             quantity: item.quantity,
-            variantText: variantText,
+            attrText: attrText,
             productId: product.id,
             variantId: item.variantId
         });
@@ -113,21 +102,47 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    // Render Scrollable Summary Items
-    summaryItemsList.innerHTML = formattedItemsForDisplay.map(item => `
-        <div class="summary-item-card">
-            <img src="${item.image}" alt="${item.title}" class="summary-item-img">
-            <div class="summary-item-info">
-                <h4 class="summary-item-title">${item.title}</h4>
-                <p class="summary-item-meta">${item.variantText ? item.variantText + ' | ' : ''}Qty: ${item.quantity}</p>
-            </div>
-            <span class="summary-item-price">₱${(item.price * item.quantity).toFixed(2)}</span>
-        </div>
-    `).join('');
+    // Group items by product name
+    const grouped = {};
+    formattedItemsForDisplay.forEach(item => {
+        if (!grouped[item.title]) {
+            grouped[item.title] = [];
+        }
+        grouped[item.title].push(item);
+    });
 
+    let html = '';
+    for (const [productTitle, items] of Object.entries(grouped)) {
+        html += `
+            <div class="checkout-group-card">
+                <div class="checkout-group-header">
+                    <h4 class="checkout-group-title">${productTitle}</h4>
+                </div>
+                <div class="checkout-group-items">
+        `;
+
+        items.forEach(item => {
+            html += `
+                <div class="summary-item-card">
+                    <img src="${item.image}" alt="${item.title}" class="summary-item-img">
+                    <div class="summary-item-info">
+                        ${item.attrText ? `<span class="summary-item-attrs">${item.attrText}</span>` : ''}
+                        <p class="summary-item-meta">Qty: ${item.quantity}</p>
+                    </div>
+                    <span class="summary-item-price">₱${(item.price * item.quantity).toFixed(2)}</span>
+                </div>
+            `;
+        });
+
+        html += `
+                </div>
+            </div>
+        `;
+    }
+
+    summaryItemsList.innerHTML = html;
     totalDisplay.innerText = `₱${subtotal.toFixed(2)}`;
 
-    // Handle Place Order Button Click
     if (proceedPaymentBtn) {
         proceedPaymentBtn.addEventListener('click', async () => {
             const payload = {
@@ -141,7 +156,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }))
             };
 
-            // Show full-page loading overlay
             loadingOverlayText.innerText = 'Locking inventory & initializing PayMongo checkout...';
             pageLoadingOverlay.style.display = 'flex';
             proceedPaymentBtn.disabled = true;
@@ -167,8 +181,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             } catch (err) {
                 console.error('Checkout Error:', err);
-                
-                // Hide overlay on error so user can retry
                 pageLoadingOverlay.style.display = 'none';
                 proceedPaymentBtn.disabled = false;
                 if (backIconBtn) backIconBtn.disabled = false;

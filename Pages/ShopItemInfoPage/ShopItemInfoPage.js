@@ -299,7 +299,7 @@ window.updateModalQty = function(change) {
     input.value = current;
 };
 
-window.confirmModalAction = function() {
+window.confirmModalAction = async function() {
     const product = window.currentProduct;
     const qtyInput = document.getElementById('modalQtyInput');
     const qty = qtyInput ? parseInt(qtyInput.value) : 1;
@@ -312,50 +312,56 @@ window.confirmModalAction = function() {
     });
 
     if (!matchedVariant || matchedVariant.stock_quantity <= 0) {
-        if (typeof window.showErrorModal === 'function') {
-            window.showErrorModal('Please select valid and in-stock variant attributes.');
-        } else {
-            alert('Please select valid and in-stock variant attributes.');
-        }
+        const errorMsg = 'Please select valid and in-stock variant attributes.';
+        if (typeof window.showErrorModal === 'function') { window.showErrorModal(errorMsg); } else { alert(errorMsg); }
         return;
     }
 
     if (qty > matchedVariant.stock_quantity) {
-        const errorMsg = `The requested quantity (${qty}) exceeds the available stock (${matchedVariant.stock_quantity}).`;
-        if (typeof window.showErrorModal === 'function') {
-            window.showErrorModal(errorMsg);
-        } else {
-            alert(errorMsg);
-        }
+        const errorMsg = `The requested quantity (${qty}) exceeds available stock (${matchedVariant.stock_quantity}).`;
+        if (typeof window.showErrorModal === 'function') { window.showErrorModal(errorMsg); } else { alert(errorMsg); }
         return;
     }
 
-    const cartItem = { 
-        productId: product.id, 
-        variantId: matchedVariant.id, 
-        quantity: qty,
-        attributes: window.selectedAttributes 
-    };
+    const cartItem = { productId: product.id, variantId: matchedVariant.id, quantity: qty };
     
-    let cart = JSON.parse(localStorage.getItem('studio_cart') || '[]');
-    cart.push(cartItem);
-    localStorage.setItem('studio_cart', JSON.stringify(cart));
-
-    closeVariantModal();
-
     if (window.activeModalActionType === 'cart') {
-        let cart = JSON.parse(localStorage.getItem('studio_cart') || '[]');
-        cart.push(cartItem);
-        localStorage.setItem('studio_cart', JSON.stringify(cart));
-        closeVariantModal();
-        if (typeof window.showSuccessModal === 'function') {
-            window.showSuccessModal('Product successfully added to your cart!');
-        } else {
-            alert('Product successfully added to your cart!');
+        try {
+            const response = await secureFetch('/api/shop/cart', {
+                method: 'POST',
+                body: JSON.stringify(cartItem)
+            });
+
+            // If user is not logged in, secureFetch returns 401/403
+            if (response.status === 401 || response.status === 403) {
+                closeVariantModal();
+                const errorMsg = 'Please log in to add items to your cart.';
+                if (typeof window.showErrorModal === 'function') {
+                    window.showErrorModal(errorMsg);
+                } else {
+                    alert(errorMsg);
+                }
+                return;
+            }
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.message || 'Failed to add item to cart.');
+            }
+
+            closeVariantModal();
+            if (typeof window.showSuccessModal === 'function') {
+                window.showSuccessModal('Product successfully added to your cart!');
+            } else {
+                alert('Product successfully added to your cart!');
+            }
+        } catch (err) {
+            console.error('Add to cart error:', err);
+            const errorMsg = err.message || 'Failed to add item to cart.';
+            if (typeof window.showErrorModal === 'function') { window.showErrorModal(errorMsg); } else { alert(errorMsg); }
         }
     } else {
-        // Buy Now direct checkout
-        const checkoutItem = [cartItem];
+        const checkoutItem = [{ ...cartItem, attributes: window.selectedAttributes, price: matchedVariant.price_override || product.base_price, title: product.title, image: matchedVariant.image || product.main_image }];
         localStorage.setItem('studio_checkout_items', JSON.stringify(checkoutItem));
         closeVariantModal();
         window.location.href = '../ShopCheckoutPage/ShopCheckoutPage.html';

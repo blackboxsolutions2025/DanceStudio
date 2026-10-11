@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopping Cart - Rhythm & Soul</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../Shared/header.css">
+    <link rel="stylesheet" href="ShopCartPage.css">
+</head>
+<body>
+    <!-- Sticky Header matching header.js sizing & theme -->
+    <header class="site-header cart-sticky-header">
+        <a href="../ShopListPage/ShopListPage.html" class="cart-back-btn" aria-label="Back to Shop">
+            <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <h1 class="header-title">Shopping Cart</h1>
+        <div class="header-spacer"></div>
+    </header>
+
+    <main class="cart-container" id="cartContainer">
+        <div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Loading your cart...</div>
+    </main>
+
+    <!-- Sticky Footer -->
+    <footer class="cart-sticky-footer" id="cartStickyFooter" style="display: none;">
+        <div class="footer-content">
+            <label class="select-all-label">
+                <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)">
+                <span>All (<span id="selectedCount">0</span>)</span>
+            </label>
+            <div class="footer-right">
+                <div class="total-price-wrap">
+                    <span class="total-amount" id="totalPriceDisplay">₱0.00</span>
+                </div>
+                <button class="btn-checkout" id="checkoutBtn" onclick="proceedToCheckout()" disabled>
+                    Check Out
+                </button>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../Shared/header.js"></script>
+    <script src="ShopCartPage.js"></script>
+</body>
+</html>
