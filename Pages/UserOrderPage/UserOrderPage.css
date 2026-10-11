@@ -1,0 +1,303 @@
+/* Base Page Setup */
+body {
+    background-color: #0f1015;
+    color: #ffffff;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+}
+
+.page-container {
+    max-width: 900px;
+    margin: 20px auto;
+    padding: 0 20px;
+}
+
+.header-section {
+    margin-bottom: 30px;
+}
+
+.page-title {
+    font-size: 2rem;
+    color: #10b981;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.page-subtitle {
+    color: #94a3b8;
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+/* Orders List & Accordion Cards */
+.orders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.order-card {
+    background-color: #1e293b;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.order-card:hover {
+    border-color: rgba(16, 185, 129, 0.5);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Claimed (Red) Card Styling */
+.order-card.claimed {
+    background-color: rgba(239, 68, 68, 0.05);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.order-card.claimed:hover {
+    border-color: rgba(239, 68, 68, 0.6);
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);
+}
+
+.order-card.claimed .order-header {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, #151e2b 100%);
+}
+
+.order-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px;
+    cursor: pointer;
+    background: linear-gradient(135deg, #1e293b 0%, #151e2b 100%);
+}
+
+.order-info {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.order-id {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.order-date {
+    font-size: 0.85rem;
+    color: #94a3b8;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.order-total {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.accordion-icon {
+    color: #94a3b8;
+    transition: transform 0.3s ease;
+}
+
+/* Accordion Body */
+.order-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease-out;
+    background-color: #151e2b;
+}
+
+.order-card.expanded .order-body {
+    max-height: 1000px; 
+}
+
+.order-card.expanded .accordion-icon {
+    transform: rotate(180deg);
+    color: #10b981;
+}
+
+.order-card.claimed.expanded .accordion-icon {
+    color: #ef4444;
+}
+
+.order-items-table {
+    padding: 20px;
+    border-top: 1px solid rgba(16, 185, 129, 0.1);
+}
+
+.order-card.claimed .order-items-table {
+    border-top: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.item-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+}
+
+.item-row:last-child {
+    border-bottom: none;
+}
+
+.item-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.item-title {
+    font-weight: 600;
+    color: #e2e8f0;
+}
+
+.item-meta {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin-top: 3px;
+}
+
+.item-price-qty {
+    text-align: right;
+    font-weight: 600;
+    color: #cbd5e1;
+}
+
+/* Order Footer & Claim Button */
+.order-footer {
+    padding: 15px 20px;
+    display: flex;
+    justify-content: flex-end;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.claim-btn {
+    background-color: #10b981;
+    color: #0f1015;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.claim-btn:hover {
+    background-color: #059669;
+    color: #ffffff;
+}
+
+.claim-btn.claimed-btn {
+    background-color: #ef4444;
+    color: #ffffff;
+    cursor: not-allowed;
+}
+
+/* QR Code Modal Custom Styles */
+.qr-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 2000;
+}
+
+.qr-modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.qr-modal-content {
+    background: #1e293b;
+    border: 1px solid #10b981;
+    border-radius: 16px;
+    padding: 30px;
+    width: 90%;
+    max-width: 350px;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+}
+
+.qr-modal-overlay.active .qr-modal-content {
+    transform: translateY(0);
+}
+
+.qr-close-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.qr-close-btn:hover {
+    color: #ef4444;
+}
+
+.qr-title {
+    color: #10b981;
+    margin: 0 0 10px 0;
+    font-size: 1.4rem;
+}
+
+.qr-desc {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+}
+
+.qr-image-container {
+    background: #ffffff;
+    padding: 15px;
+    border-radius: 12px;
+    display: inline-block;
+    margin-bottom: 15px;
+}
+
+.qr-image-container img {
+    display: block;
+    width: 200px;
+    height: 200px;
+}
+
+.qr-order-id {
+    font-weight: 700;
+    color: #e2e8f0;
+    letter-spacing: 1px;
+    margin: 0;
+}
+
+.loading-spinner {
+    text-align: center;
+    color: #94a3b8;
+    padding: 40px;
+    font-size: 1.2rem;
+}

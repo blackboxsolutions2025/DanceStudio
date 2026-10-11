@@ -3153,6 +3153,92 @@ app.delete('/api/shop/cart/:cartId', authenticateToken, async (req, res) => {
     }
 });
 
+// --- Get User Shop Orders ---
+app.get('/api/user/orders', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        // Fetch only confirmed and claimed orders
+        const [orders] = await pool.execute(
+            `SELECT id, total_amount, status, created_at 
+             FROM shop_orders 
+             WHERE user_id = ? AND status IN ('confirmed', 'claimed')
+             ORDER BY created_at DESC`,
+            [userId]
+        );
+
+        if (orders.length === 0) {
+            return res.json([]);
+        }
+
+        // 2. Fetch items for all these orders
+        const orderIds = orders.map(o => o.id);
+        const placeholders = orderIds.map(() => '?').join(',');
+        
+        const [items] = await pool.execute(
+            `SELECT soi.shop_order_id, soi.quantity, soi.price, p.title, soi.variant_id 
+             FROM shop_order_items soi
+             JOIN products p ON soi.product_id = p.id
+             WHERE soi.shop_order_id IN (${placeholders})`,
+            orderIds
+        );
+
+        // 3. For variants, fetch attributes (size, color, etc.) to show in UI
+        const [variantValues] = await pool.execute(`
+            SELECT vv.variant_id, vv.value 
+            FROM variant_values vv 
+            WHERE vv.variant_id IN (
+                SELECT variant_id FROM shop_order_items WHERE shop_order_id IN (${placeholders})
+            )
+        `, orderIds);
+
+        // Map items to their respective orders
+        const formattedOrders = orders.map(order => {
+            const orderItems = items.filter(item => item.shop_order_id === order.id).map(item => {
+                // Find attributes for this item's variant
+                const attrs = variantValues.filter(vv => vv.variant_id === item.variant_id);
+                const attrStr = attrs.map(a => a.value).join(', ');
+                
+                return {
+                    title: item.title,
+                    quantity: item.quantity,
+                    price: item.price,
+                    attribute_str: attrStr
+                };
+            });
+
+            return {
+                ...order,
+                items: orderItems
+            };
+        });
+
+        res.json(formattedOrders);
+    } catch (err) {
+        console.error('Fetch User Orders Error:', err);
+        res.status(500).json({ message: 'Server error while fetching orders.' });
+    }
+});
+
+// --- Check Specific Order Status ---
+app.get('/api/user/orders/:id/status', authenticateToken, async (req, res) => {
+    try {
+        const [orders] = await pool.execute(
+            'SELECT status FROM shop_orders WHERE id = ? AND user_id = ?',
+            [req.params.id, req.user.id]
+        );
+        
+        if (orders.length === 0) {
+            return res.status(404).json({ message: 'Order not found.' });
+        }
+        
+        res.json({ status: orders[0].status });
+    } catch (err) {
+        console.error('Check Order Status Error:', err);
+        res.status(500).json({ message: 'Server error checking order status.' });
+    }
+});
+
 
 
 

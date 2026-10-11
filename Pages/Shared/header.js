@@ -128,8 +128,8 @@
             <a href="../ShopCartPage/ShopCartPage.html" class="dropdown-btn">
                 <i class="fa-solid fa-cart-shopping"></i> Cart
             </a>
-            <a href="../Shop/Orders.html" class="dropdown-btn">
-                <i class="fa-solid fa-box-open"></i> Orders
+            <a href="../UserOrderPage/UserOrderPage.html" class="dropdown-btn">
+                <i class="fa-solid fa-box-open"></i> My Orders
             </a>
             <a href="/settings" class="dropdown-btn">
                 <i class="fa-solid fa-gear"></i> Settings

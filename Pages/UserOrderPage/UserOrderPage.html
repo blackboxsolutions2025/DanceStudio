@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Orders - Rhythm & Soul</title>
+    <!-- Fonts & Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Global CSS -->
+    <link rel="stylesheet" href="../Shared/header.css">
+    <link rel="stylesheet" href="../Shared/success-modal.css">
+    <link rel="stylesheet" href="../Shared/error-modal.css">
+    <link rel="stylesheet" href="../Shared/confirmation-modal.css">
+    <!-- Page Specific CSS -->
+    <link rel="stylesheet" href="UserOrderPage.css">
+</head>
+<body>
+    <!-- Header Placeholder -->
+    <div id="header-placeholder"></div>
+
+    <main class="page-container">
+        <div class="header-section">
+            <h1 class="page-title"><i class="fa-solid fa-box-open"></i> My Orders</h1>
+            <p class="page-subtitle">View your purchase history and claim confirmed items.</p>
+        </div>
+
+        <!-- Orders Container -->
+        <div id="ordersList" class="orders-list">
+            <div class="loading-spinner"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading orders...</div>
+        </div>
+    </main>
+
+    <!-- Custom QR Code Modal -->
+    <div id="qrModal" class="qr-modal-overlay">
+        <div class="qr-modal-content">
+            <button class="qr-close-btn" id="closeQrBtn"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="qr-title">Claim Your Order</h3>
+            <p class="qr-desc">Present this QR code to the studio counter to claim your items.</p>
+            <div class="qr-image-container">
+                <img id="qrCodeImage" src="" alt="Order QR Code">
+            </div>
+            <p class="qr-order-id" id="qrOrderIdDisplay"></p>
+        </div>
+    </div>
+
+    <!-- Global JS -->
+    <script src="../Shared/header.js"></script>
+    <script src="../Shared/success-modal.js"></script>
+    <script src="../Shared/error-modal.js"></script>
+    <script src="../Shared/confirmation-modal.js"></script>
+    <!-- Page Specific JS -->
+    <script src="UserOrderPage.js"></script>
+</body>
+</html>
